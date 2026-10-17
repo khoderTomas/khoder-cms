@@ -641,10 +641,15 @@ def file_adds_typo(src):
 
 def needs_strip(pv, seg, old_raw, bp):
     """Pevné mezery do zdroje nepatří, když je doplňuje build (skript, který typografii doplňuje sám,
-    stránka je má a zdroj ne) nebo když text jde i do JSON-LD/hlavičky (prostý text)."""
+    hodnota z dat bez vlastních pevných mezer, stránka je má a zdroj ne) nebo když text jde i do
+    JSON-LD/hlavičky (prostý text)."""
     if bp.plain() or (not is_data(seg.file) and file_adds_typo(pv.srcs[seg.file])):
         return True
     lit = pv.lits[seg.file][seg.li]
+    if is_text(seg.file, lit.value):
+        # prostý text z dat sází build celý: rozhoduje celá hodnota, ne úsek („s fakturou“ napsané
+        # do úseku bez jednopísmenného slova by jinak šlo do dat s pevnou mezerou)
+        return not _TYPO.search(lit.value)
     lu = lit_units(seg.file, lit.value)
     _, idx = normalize(lu)
     rng = lit.value[lu[idx[seg.k]][1]:lu[idx[seg.k + seg.n - 1]][2]]

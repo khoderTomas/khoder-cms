@@ -50,7 +50,7 @@ import buildlock
 import classify as C
 import gitsync as G
 import htmltext as H
-import pysource as PS
+import provenance as PV
 import seo as S
 from journal import sha
 
@@ -869,35 +869,36 @@ def _skel_lits(src, lits):
 
 
 class _Lits:
-    """Které literály skriptů která úprava změnila, z bajtů „před“ a „po“ v journalu.
-    scripts = zdroje generátoru (cesty v repu), jiné soubory úprav jsou stránky."""
+    """Které literály zdrojů která úprava změnila, z bajtů „před“ a „po“ v journalu.
+    sources = zdroje textu (cesty v repu): skripty generátoru (literály Pythonu) a datové soubory
+    (řetězcové hodnoty, B10); jiné soubory úprav jsou stránky."""
 
-    def __init__(self, journal, entries, scripts):
+    def __init__(self, journal, entries, sources):
         self.j, self.entries, self.memo, self.parsed = journal, entries, {}, {}
-        self.scripts = set(scripts)
+        self.sources = set(sources)
 
-    def parse(self, data):
-        key = sha(data)
+    def parse(self, path, data):
+        key = (PV.is_data(path), sha(data))
         if key not in self.parsed:
             src = data.decode("utf-8")
-            lits = PS.literals(src)
+            lits = PV.literals(path, src)
             self.parsed[key] = (src, lits, _skel_lits(src, lits))
         return self.parsed[key]
 
     def of(self, e):
-        """{(skript, index literálu): surový obsah literálu před úpravou} pro literály, které úprava změnila."""
+        """{(zdroj, index literálu): surový obsah literálu před úpravou} pro literály, které úprava změnila."""
         if e["id"] not in self.memo:
             out = {}
             for f in e["files"]:
                 path = f["path"]
-                if path not in self.scripts:
+                if path not in self.sources:
                     continue
                 b, a = self.j.before_bytes(e, path), self.j.after_bytes(e, path, self.entries)
                 if b is None or a is None:
-                    raise A.Fail("Skript %s se od úpravy %s změnil i mimo editor, zahodit ji jde jen ručně přes git."
-                                 % (path, e.get("label", e["id"])), code="conflict", status=409)
-                sb, lb, kb = self.parse(b)
-                sa, la, ka = self.parse(a)
+                    raise A.Fail("%s se od úpravy %s změnil i mimo editor, zahodit ji jde jen ručně přes git."
+                                 % (_src_name(path), e.get("label", e["id"])), code="conflict", status=409)
+                sb, lb, kb = self.parse(path, b)
+                sa, la, ka = self.parse(path, a)
                 if kb != ka:
                     raise A.Fail("Úprava %s změnila v %s i kód mimo texty, zahodit ji jde jen ručně přes git."
                                  % (e.get("label", e["id"]), path), code="conflict", status=409)
@@ -905,6 +906,10 @@ class _Lits:
                             if sb[x.a:x.z] != sa[y.a:y.z]})
             self.memo[e["id"]] = out
         return self.memo[e["id"]]
+
+
+def _src_name(path):
+    return ("Datový soubor %s" if PV.is_data(path) else "Skript %s") % path
 
 
 def _file_sha(root, rel):
@@ -916,11 +921,12 @@ def discard(editor, slug, confirm=None):
     """Zahodí nepublikované úpravy stránky (Zahodit v panelu Změny).
 
     Ruční a owner stránka: zapíšou se bajty z HEAD (git, ne checkout: P20).
-    Generovaná: literály skriptů, které úpravy stránky změnily, dostanou zpět surový obsah
-    z doby před úpravou. Sdílí-li literál úprava jiné stránky, zahodí se celá i ta (úpravy
-    se nedělí) a potvrzení dotčené stránky vypíše. Pak zkušební build, injektory a verify
-    jako při uložení. Journal: záznam discard, zahozené úpravy stav discarded.
-    Bez platného confirm vrací potvrzení s tokenem, s ním zapisuje."""
+    Generovaná, a ruční nebo owner, jejíž úpravy zapsaly i do zdrojů textu (hodnoty datových
+    souborů, B10): literály skriptů a hodnoty dat, které úpravy stránky změnily, dostanou zpět
+    surový obsah z doby před úpravou, ruční a owner stránka bajty z HEAD. Sdílí-li literál úprava
+    jiné stránky, zahodí se celá i ta (úpravy se nedělí) a potvrzení dotčené stránky vypíše. Pak
+    zkušební build, injektory a verify jako při uložení. Journal: záznam discard, zahozené úpravy
+    stav discarded. Bez platného confirm vrací potvrzení s tokenem, s ním zapisuje."""
     j = editor.journal
     kind = editor.kind(slug)
     rel = editor.page_rel(slug)
@@ -936,8 +942,9 @@ def discard(editor, slug, confirm=None):
         raise A.Fail("Bez gitu nejde zjistit poslední publikovanou verzi (%s), zahodit nejde." % e, code="nogit", status=409)
     if head is None:
         raise A.Fail("Stránka v gitu (HEAD) ještě není, zahodit nejde.", code="nogit", status=409)
-    if kind == "generated":
-        covers, writes, state, notes = _discard_generated(editor, slug, entries, done, seed, head)
+    sources = set(editor.site.generator_files()) | set(editor.site.data_files())
+    if kind == "generated" or any(f["path"] in sources for e in seed for f in e["files"]):
+        covers, writes, state, notes = _discard_sources(editor, slug, kind, entries, done, seed, head, sources)
         _no_replace(covers)
     else:
         covers, writes, state, notes = _discard_file(editor, rel, entries, seed, head)
@@ -990,24 +997,44 @@ def _cut(text, n=60):
 
 def _discard_file(editor, rel, entries, seed, head):
     """Ruční a owner stránka: celý soubor z HEAD."""
-    j = editor.journal
     other = sorted({f["path"] for e in seed for f in e["files"]} - {rel})
     if other:
         raise A.Fail("Úpravy stránky zapsaly i jiné soubory (%s), zahodit je jde jen ručně přes git." % ", ".join(other),
                      code="conflict", status=409)
+    return seed, {rel: head}, {rel: _file_sha(editor.root, rel)}, _file_notes(editor.journal, rel, entries, seed, head)
+
+
+def _file_notes(j, rel, entries, seed, head):
+    """Co se se stránkou z HEAD zahodí navíc: změny mimo editor před první a po poslední úpravě."""
     notes = []
     first = j.before_bytes(seed[0], rel)
     if first is not None and _lf(first.decode("utf-8")) != _lf(head.decode("utf-8")):
         notes.append("V souboru byly už před první úpravou změny, které nezapsal editor. Zahodí se taky.")
     if j.after_bytes(seed[-1], rel, entries) is None:
         notes.append("Soubor se od poslední úpravy změnil i mimo editor. Zahodí se i to.")
-    return seed, {rel: head}, {rel: _file_sha(editor.root, rel)}, notes
+    return notes
 
 
-def _discard_generated(editor, slug, entries, done, seed, head):
-    """Generovaná stránka: literály zpět, zkušební build dotčených skriptů, build v paměti a kontrola."""
+def _foreign(site, foreign):
+    return A.Fail("Zkušební build mění i stránky, kterých se zahazované úpravy netýkají (%s). %s/ neodpovídá "
+                  "zdrojům: spusť %s a zkontroluj git diff."
+                  % (", ".join("/" + p for p in foreign[:6]), site.source, site.build_hint()), code="drift", status=409)
+
+
+def _discard_sources(editor, slug, kind, entries, done, seed, head, sources):
+    """Úpravy stránky zapsaly do zdrojů textu (sources: skripty generátoru a datové soubory): literály
+    zpět, zkušební build, build v paměti a kontrola. Generovaná stránka jen se skripty: zkušební build
+    dotčených skriptů. Hodnoty z dat, nebo ruční a owner stránka (ta z bajtů HEAD): stránky jako při
+    uložení (Editor._part_plan), u dat všechny."""
     j, root, site = editor.journal, editor.root, editor.site
-    lits = _Lits(j, entries, site.generator_files())
+    reg = editor.registry()
+    rel = editor.page_rel(slug)
+    if kind != "generated":
+        other = sorted({f["path"] for e in seed for f in e["files"]} - sources - {editor.page_rel(s) for s in reg})
+        if other:
+            raise A.Fail("Úpravy stránky zapsaly i jiné soubory (%s), zahodit je jde jen ručně přes git."
+                         % ", ".join(other), code="conflict", status=409)
+    lits = _Lits(j, entries, sources)
     closure = {e["id"] for e in seed}
     grow = True
     while grow:                              # úpravy, které sdílejí změněný literál, jdou celé
@@ -1028,10 +1055,10 @@ def _discard_generated(editor, slug, entries, done, seed, head):
     for path in sorted({k[0] for k in target}):
         data = (root / path).read_bytes()
         state[path] = sha(data)
-        cur, cl, ck = lits.parse(data)
+        cur, cl, ck = lits.parse(path, data)
         first = next(e for e in covers if any(k[0] == path for k in lits.of(e)))
-        if ck != lits.parse(j.before_bytes(first, path))[2]:
-            raise A.Fail("Skript %s se od úprav změnil i mimo texty, zahodit je jde jen ručně přes git." % path,
+        if ck != lits.parse(path, j.before_bytes(first, path))[2]:
+            raise A.Fail("%s se od úprav změnil i mimo texty, zahodit je jde jen ručně přes git." % _src_name(path),
                          code="conflict", status=409)
         s = cur
         for _, i in sorted((k for k in target if k[0] == path), key=lambda k: -cl[k[1]].a):
@@ -1039,11 +1066,42 @@ def _discard_generated(editor, slug, entries, done, seed, head):
         if s != cur:
             texts[path] = s
 
+    cover_pages = {s for e in covers for f in e["files"] for s in [site.page_slug(f["path"])] if s}
+    data = set(site.data_files())
+    if kind == "generated" and not any(f["path"] in data for e in covers for f in e["files"]):
+        writes = _rebuild_scripts(editor, slug, texts, state, cover_pages)
+    else:
+        own = {} if kind == "generated" else {slug: head.decode("utf-8")}
+        if any(f["path"] in data for e in covers for f in e["files"]):
+            reach, scripts = set(reg), None
+        else:                                # ruční stránka přebírá FAQ z generované (Rules.faq_from)
+            reach = {p for p, v in reg.items() if v["kind"] == "generated"}
+            scripts = site.scripts_for(texts)
+        plan = editor._part_plan(texts, own=own, reach=reach, scripts=scripts)
+        foreign = sorted(set(plan["pages"]) - cover_pages - {slug})
+        if foreign:
+            raise _foreign(site, foreign)
+        writes = {p: t.encode("utf-8") for p, t in plan["writes"].items()}
+        state.update(plan["state"])
+    state.setdefault(rel, _file_sha(root, rel))
+    hs = head.decode("utf-8")
+    new = writes[rel].decode("utf-8") if rel in writes else editor.read_page(slug)
+    notes = [] if kind == "generated" else _file_notes(j, rel, entries, seed, head)
+    if _lf(new) != _lf(hs):
+        notes.append("Stránka se ani po zahození nevrátí přesně do stavu poslední publikace, zbytek nezapsal editor.")
+    elif kind != "generated":
+        writes[rel] = head                   # bajty z gitu, ne CRLF z checkoutu (P20)
+    return covers, writes, state, notes
+
+
+def _rebuild_scripts(editor, slug, texts, state, cover_pages):
+    """Generovaná stránka s vrácenými literály skriptů: zkušební build dotčených skriptů, build
+    v paměti a kontrola. Vrací writes {cesta v repu: bajty}, state doplní o přepsané stránky."""
+    site = editor.site
     ok, err, outputs = site.generate(texts, site.scripts_for(texts, also=[editor.script_rel(slug)]))
     if not ok:
         raise A.Fail("Build po vrácení textů selhal, nic jsem nezapsal.", code="verify",
                      details=[x for x in err.strip().splitlines() if x.strip()][-6:])
-    cover_pages = {s for e in covers for f in e["files"] for s in [site.page_slug(f["path"])] if s}
     writes, fails, foreign = {}, [], []
     for page in sorted(outputs):
         cand = editor.inject(outputs[page], page)
@@ -1057,19 +1115,11 @@ def _discard_generated(editor, slug, entries, done, seed, head):
         writes[editor.page_rel(page)] = cand.encode("utf-8")
         state[editor.page_rel(page)] = sha(cur.encode("utf-8"))
     if foreign:
-        raise A.Fail("Zkušební build mění i stránky, kterých se zahazované úpravy netýkají (%s). %s/ neodpovídá "
-                     "zdrojům: spusť %s a zkontroluj git diff."
-                     % (", ".join("/" + p for p in foreign[:6]), site.source, site.build_hint()), code="drift", status=409)
+        raise _foreign(site, foreign)
     if fails:
         raise A.Fail("Po vrácení textů by stránky neprošly kontrolou buildu, nic jsem nezapsal.", code="verify", details=fails)
     writes.update({p: s.encode("utf-8") for p, s in texts.items()})
-    rel = editor.page_rel(slug)
-    state.setdefault(rel, _file_sha(root, rel))
-    new = writes[rel].decode("utf-8") if rel in writes else editor.read_page(slug)
-    notes = []
-    if _lf(new) != _lf(head.decode("utf-8")):
-        notes.append("Stránka se ani po zahození nevrátí přesně do stavu poslední publikace, zbytek nezapsal editor.")
-    return covers, writes, state, notes
+    return writes
 
 
 # ── kontrola při startu serveru ──

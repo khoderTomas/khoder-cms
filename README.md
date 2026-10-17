@@ -63,7 +63,9 @@ zamčené). Build webu musí značky z délek textů vynechat (zalamování titu
 ze kterých má texty (`PageProv.key`); po zápisu sondu dohřeje na pozadí (`warm`, i při startu
 serveru). Uložení (`_save_mapped`) zapíše změněné úseky do literálů nebo hodnot, přestaví dotčené
 stránky (u dat všechny) a zapíše zdroje i stránky jedním záznamem journalu. Hodnota z dat bez tagů
-a entit je prostý text: vložený text se do ní dekóduje z HTML, nové formátování editor odmítne.
+a entit je prostý text: vložený text se do ní dekóduje z HTML, nové formátování editor odmítne
+a pevné mezery do ní jdou, jen když je měla celá hodnota (`needs_strip`). Zahodit (`publish.discard`)
+vrací literály i hodnoty z dat, které úpravy stránky změnily (`_discard_sources`).
 
 Publikace slučuje soubory z journalu přes `git merge-file`; u `.json`, kde po řádcích vyjde konflikt
 (dvě hodnoty na jednom řádku), ještě po cestách (`gitsync.merge`, `jsonsource.merge3`).

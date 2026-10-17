@@ -1,0 +1,86 @@
+#!/bin/sh
+# Spouštěč deploye na serveru (Khoder CMS). Repo, stav a připnutý kód jsou v $CMS_HOME (výchozí ~/cms).
+#
+#   cms-deploy deploy [sha]       plný deploy commitu z větve (výchozí její špička)
+#   cms-deploy dry-run [sha]      totéž bez zápisu
+#   cms-deploy rollback <sha>     plný deploy staršího commitu z větve
+#   cms-deploy status
+#   cms-deploy cms deploy|dry-run|status [sha]
+#                                 režim editoru: nasadí jen HTML a sitemapy. Z vynuceného příkazu
+#                                 klíče (command="cms-deploy cms") bere příkaz ze SSH_ORIGINAL_COMMAND.
+#
+# Plný režim pustí deploy.py a cms.toml z nasazovaného commitu a po úspěchu je připne do
+# $CMS_HOME/pin. Režim cms pouští jen připnutou verzi: commit z editoru tak nezmění kód
+# ani pravidla, podle kterých se nasazuje.
+set -eu
+
+CMS_HOME=${CMS_HOME:-$HOME/cms}
+REPO=$CMS_HOME/repo.git
+PIN=$CMS_HOME/pin
+STATE=$CMS_HOME/state.json
+PY=${CMS_PYTHON:-python3}
+REMOTE=${CMS_REMOTE:-origin}
+BRANCH=${CMS_BRANCH:-main}
+
+die() { echo "CHYBA: $*" >&2; exit 1; }
+
+mode=full
+cmd=${1:-}
+[ $# -gt 0 ] && shift
+if [ "$cmd" = cms ]; then
+  mode=cms
+  if [ $# -eq 0 ] && [ -n "${SSH_ORIGINAL_COMMAND:-}" ]; then
+    # vynucený příkaz: argumenty jen ze SSH_ORIGINAL_COMMAND, po mezerách, bez rozbalování masek
+    set -f
+    # shellcheck disable=SC2086
+    set -- $SSH_ORIGINAL_COMMAND
+    set +f
+  fi
+  cmd=${1:-}
+  [ $# -gt 0 ] && shift
+  case $cmd in deploy|dry-run|status) ;; *) die "režim cms umí jen deploy, dry-run a status" ;; esac
+fi
+[ $# -le 1 ] || die "příliš mnoho argumentů"
+ref=${1:-}
+if [ -n "$ref" ]; then
+  case $ref in *[!0-9a-f]*) die "commit se zadává jako SHA (7 až 40 znaků 0-9a-f)" ;; esac
+  { [ ${#ref} -ge 7 ] && [ ${#ref} -le 40 ]; } || die "commit se zadává jako SHA (7 až 40 znaků 0-9a-f)"
+fi
+case $cmd in
+  deploy|dry-run|status) ;;
+  rollback) [ -n "$ref" ] || die "rollback potřebuje SHA" ;;
+  *) die "použití: cms-deploy deploy|dry-run|rollback|status [sha], cms-deploy cms deploy|dry-run|status [sha]" ;;
+esac
+
+[ -d "$REPO" ] || die "repo $REPO chybí (README Khoder CMS, Deploy z gitu)"
+git --git-dir="$REPO" fetch -q "$REMOTE" "+refs/heads/$BRANCH:refs/remotes/$REMOTE/$BRANCH"
+
+if [ "$cmd" = status ]; then
+  if [ ! -f "$PIN/deploy.py" ]; then
+    echo "Nasazeno: zatím nic (žádný plný deploy)"
+    exit 0
+  fi
+  exec "$PY" "$PIN/deploy.py" --repo "$REPO" --config "$PIN/cms.toml" --state "$STATE" status --no-fetch
+fi
+
+sha=$(git --git-dir="$REPO" rev-parse --verify -q "${ref:-refs/remotes/$REMOTE/$BRANCH}^{commit}") \
+  || die "commit ${ref:-$REMOTE/$BRANCH} repo nezná"
+set -- --sha "$sha" --no-fetch
+if [ "$cmd" = dry-run ]; then set -- "$@" --dry-run; fi
+if [ "$cmd" = rollback ]; then set -- "$@" --rollback; fi
+
+if [ "$mode" = cms ]; then
+  { [ -f "$PIN/deploy.py" ] && [ -f "$PIN/cms.toml" ]; } || die "chybí připnutý deploy.py, nejdřív plný deploy"
+  exec "$PY" "$PIN/deploy.py" --repo "$REPO" --config "$PIN/cms.toml" --state "$STATE" deploy --caller cms "$@"
+fi
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+git --git-dir="$REPO" show "$sha:cms/deploy.py" > "$tmp/deploy.py" 2>/dev/null || die "commit $sha nemá cms/deploy.py"
+git --git-dir="$REPO" show "$sha:cms.toml" > "$tmp/cms.toml" 2>/dev/null || die "commit $sha nemá cms.toml"
+"$PY" "$tmp/deploy.py" --repo "$REPO" --config "$tmp/cms.toml" --state "$STATE" deploy --caller full "$@"
+if [ "$cmd" != dry-run ]; then
+  mkdir -p "$PIN"
+  cp "$tmp/deploy.py" "$PIN/deploy.py.new" && mv "$PIN/deploy.py.new" "$PIN/deploy.py"
+  cp "$tmp/cms.toml" "$PIN/cms.toml.new" && mv "$PIN/cms.toml.new" "$PIN/cms.toml"
+fi

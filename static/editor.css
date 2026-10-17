@@ -1,0 +1,366 @@
+/*
+ * Editor textů (Khoder CMS) v design language: lišta nad stránkou, obrysy bloků, oblast sdílené
+ * části (menu, patička), plovoucí lišta úpravy a obsah zásuvek a dialogů. Podoba podle schváleného
+ * prototypu B6 (prototype/cms-b6). Barvy jen z tokenů sady, žádný hex ani vlastní proměnné.
+ *
+ * Tokeny sady platí na stránce webu jen v prvcích editoru (.ke-ui): web má proměnné stejných jmen
+ * (--ink, --surface, --accent…), proto hostitel podává tokeny a prvky sady s :root přepsaným
+ * na .ke-ui (<base>/_admin/ui.css). Na stránkách adminu jsou tokeny na :root a tenhle soubor jen
+ * doplňuje prvky, které sada nemá. Tlačítka, výběr, dialog, zásuvka, toast a pole jsou k-*.
+ * Prvky konkrétního webu dorovná jeho site.css (cms.toml [editor] css).
+ */
+
+/* ── Kořen prvků editoru nad stránkou webu: písmo a text sady, ne webu ── */
+.ke-ui {
+  font-family: var(--f-sans);
+  font-size: var(--text-13);
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  text-align: left;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.ke-ui *, .ke-ui *::before, .ke-ui *::after { box-sizing: border-box; }
+.ke-ui button, .ke-ui input, .ke-ui select, .ke-ui textarea { font-family: inherit; letter-spacing: normal; text-transform: none; }
+.ke-ui :is(h2, h3, p, ul, ol) { letter-spacing: normal; }
+/* web může barvit odkazy pravidlem mimo vrstvy (a { color: inherit }), tlačítko-odkaz sady ho přebije */
+a.ke-ui.k-btn--primary, .ke-ui a.k-btn--primary { color: var(--on-chrome); text-decoration: none; }
+a.ke-ui.k-btn, .ke-ui a.k-btn { text-decoration: none; }
+/* odkaz-tlačítko sady (Vrátit v panelu, Odemknout v Najít a nahradit): bez rámu tlačítka prohlížeče */
+.ke-ui button.k-link { padding: 0; border: 0; background: none; font: inherit; cursor: pointer; }
+
+/* ── Editační pohled: skripty webu neběží, bloky reagují na klik ── */
+[data-ke], [data-ke] * { pointer-events: auto !important; }
+body.ke-edit { padding-top: 48px; }
+
+/* ── Lišta ─────────────────────────────────────────────────── */
+.ke-bar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 48px;
+  padding: 0 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.ke-bar .ke-sep { flex: none; width: 1px; height: 20px; margin: 0 4px; background: var(--line); }
+.ke-bar .ke-spacer { flex: 1; min-width: 8px; }
+.ke-bar .ke-pagesel { flex: none; width: 280px; min-width: 0; }
+.ke-bar .ke-pagesel .k-input { width: 100%; font-family: var(--f-mono); font-size: var(--text-12-5); }
+.ke-bar .k-seg, .ke-bar .k-btn { flex: none; }
+.ke-bar .ke-more { display: none; }
+.ke-bar .ke-more .k-pop { right: 0; left: auto; top: calc(100% + 6px); min-width: 220px; }
+@media (max-width: 1023px) {
+  .ke-bar .ke-pagesel { width: 200px; }
+  .ke-bar .ke-tool .ke-lbl { display: none; }
+}
+@media (max-width: 639px) {
+  .ke-bar { gap: 4px; padding: 0 8px; }
+  .ke-bar .ke-back .ke-lbl, .ke-bar .ke-sep, .ke-bar .ke-tool, .ke-bar .ke-pub .ke-lbl { display: none; }
+  .ke-bar .ke-pagesel { flex: 1; width: auto; }
+  .ke-bar .ke-spacer { display: none; }
+  .ke-bar .ke-more { display: block; }
+}
+
+/* Hlášky pod lištou (owner stránka, commity v main, stav editoru) */
+.ke-banners { position: sticky; top: 48px; z-index: 900; display: flex; flex-direction: column; }
+.ke-banners .k-notice { margin: 0; border-width: 0 0 1px; border-radius: 0; }
+.ke-banners .k-notice__body { display: flex; flex-direction: column; gap: 2px; }
+.ke-banners .k-notice__action { display: flex; gap: 6px; align-items: center; }
+
+/* ── Bloky na stránce ──────────────────────────────────────── */
+body.ke-edit [data-ke] { cursor: text; border-radius: 3px; }
+body.ke-edit [data-ke]:hover { outline: 1px dashed var(--ink-2); outline-offset: 3px; }
+body.ke-edit [data-ke][contenteditable="true"] { outline: 2px solid var(--ink) !important; outline-offset: 4px; cursor: text; }
+body.ke-edit [data-ke].ke-draft { outline: 1px dashed var(--ink); outline-offset: 3px; }
+body.ke-edit [data-ke].ke-saving { opacity: .55; cursor: progress; }
+body.ke-edit [data-ke-lock] { cursor: not-allowed; }
+body.ke-edit [data-ke-lock]:hover { outline: 1px dashed var(--faint); outline-offset: 3px; }
+body.ke-edit [data-ke-shared]:hover { outline-style: dotted; }
+
+/* Oblast sdílené části (menu, patička): rám kolem oblasti a štítek s rozsahem změny */
+.ke-region {
+  position: fixed;
+  z-index: 990;
+  pointer-events: none;
+  border: 1px dashed var(--ink);
+  border-radius: 4px;
+}
+.ke-region[hidden] { display: none; }
+.ke-tab {
+  position: absolute;
+  top: 100%;
+  left: -1px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 3px 4px 3px 8px;
+  border-radius: var(--radius-xs);
+  background: var(--ink);
+  color: var(--on-chrome);
+  font-size: var(--text-12);
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: auto;
+  box-shadow: var(--shadow-pop);
+}
+.ke-region--up .ke-tab { top: auto; bottom: 100%; margin: 0 0 4px; }
+.ke-tab > .k-ic { color: var(--on-chrome-icon); }
+.ke-tab .ke-tab__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--on-chrome-glass-2);
+  color: var(--on-chrome);
+  font: inherit;
+  cursor: pointer;
+}
+.ke-tab .ke-tab__btn:hover { background: var(--on-chrome-glass-line); }
+.ke-tab .ke-tab__btn:focus-visible { outline: 2px solid var(--on-chrome); outline-offset: 1px; }
+.ke-tab span.ke-tab__btn { cursor: default; }
+
+/* Tooltip u zámku, sdíleného textu a kotvy stránky */
+.ke-tip { position: fixed; z-index: 1200; display: flex; gap: 8px; max-width: 340px; pointer-events: none; }
+.ke-tip > .k-ic { margin-top: 2px; color: var(--muted); }
+
+/* ── Plovoucí lišta úpravy bloku ───────────────────────────── */
+.ke-float {
+  position: absolute;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(560px, calc(100vw - 24px));
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-shape-10);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+}
+.ke-float__row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ke-float__keys { margin-left: 4px; color: var(--muted); font-size: var(--text-12); }
+.ke-float__src { display: flex; align-items: flex-start; gap: 6px; padding: 0 2px; color: var(--muted); font-size: var(--text-12); }
+.ke-float__src .k-mono { color: var(--ink-2); overflow-wrap: anywhere; }
+.ke-float__note { display: flex; align-items: flex-start; gap: 6px; padding: 6px 8px; border-radius: var(--radius-xs); background: var(--surface-2); color: var(--ink-2); font-size: var(--text-12-5); }
+.ke-float__note > .k-ic { margin-top: 2px; color: var(--ink); }
+.ke-float__note b { color: var(--ink); font-weight: 600; }
+@media (max-width: 639px) { .ke-float__keys { display: none; } }
+
+/* ── Rozdíl po slovech (dialogy, Změny, Najít a nahradit) ── */
+.ke-diff { color: var(--ink); font-size: var(--text-13-5); line-height: 1.55; overflow-wrap: anywhere; }
+.ke-diff del { padding: 0 2px; border-radius: 3px; background: var(--err-soft); color: var(--err); text-decoration: line-through; }
+.ke-diff ins { padding: 0 2px; border-radius: 3px; background: var(--ok-soft); color: var(--ok); text-decoration: none; }
+.ke-diff i { color: var(--muted); }
+.ke-diff__where, .ke-lab { display: block; margin-bottom: 2px; color: var(--muted); font-size: var(--text-12); font-weight: 500; }
+
+/* ── Dialog potvrzení sdílené změny ── */
+.ke-dlg { display: flex; flex-direction: column; gap: 14px; }
+.ke-dlg > p { margin: 0; }
+.ke-changes { display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: var(--radius-shape-10); }
+.ke-changes > div { padding: 10px 12px; border-top: 1px solid var(--line-2); }
+.ke-changes > div:first-child { border-top: 0; }
+.ke-scope { display: flex; flex-direction: column; gap: 6px; }
+.ke-scope__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.ke-scope__n { color: var(--ink); font-weight: 600; }
+.ke-scope__kinds { color: var(--muted); font-size: var(--text-12-5); }
+.ke-pages summary { display: inline-flex; align-items: center; gap: 4px; color: var(--ink); font-size: var(--text-12-5); font-weight: 500; cursor: pointer; list-style: none; }
+.ke-pages summary::-webkit-details-marker { display: none; }
+.ke-pages summary .k-ic { transition: transform var(--dur-2) var(--easing-standard); }
+.ke-pages[open] summary .k-ic { transform: rotate(180deg); }
+.ke-pages__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2px 16px; max-height: 220px; margin: 8px 0 0; padding: 10px 12px; overflow: auto; border: 1px solid var(--line-2); border-radius: var(--radius-shape-10); list-style: none; }
+.ke-pages__grid li { min-width: 0; overflow: hidden; color: var(--ink-2); font-family: var(--f-mono); font-size: var(--text-12); line-height: 20px; text-overflow: ellipsis; white-space: nowrap; }
+.ke-pages__grid li span { color: var(--muted); font-family: var(--f-sans); }
+/* Owner stránky: co čeká na člověka, má plochu a proužek v tónu */
+.ke-owner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in oklab, var(--tone-warn-icon) 28%, var(--line-2));
+  border-radius: var(--radius-shape-10);
+  background: color-mix(in oklab, var(--tone-warn-icon) 8%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--tone-warn-icon);
+  color: var(--ink-2);
+  font-size: var(--text-13);
+}
+.ke-owner__head { display: flex; align-items: flex-start; gap: 8px; }
+.ke-owner__head > .k-ic { margin-top: 2px; color: var(--tone-warn-icon); }
+.ke-owner b { color: var(--ink); font-weight: 600; }
+.ke-owner label { display: flex; align-items: center; gap: 8px; margin-left: 24px; color: var(--ink); font-weight: 500; cursor: pointer; }
+.ke-check-note { display: flex; gap: 8px; color: var(--muted); font-size: var(--text-12-5); }
+.ke-check-note > .k-ic { margin-top: 1px; }
+.ke-list { margin: 0; padding: 8px 12px 8px 28px; border-radius: var(--radius-xs); background: var(--surface-2); color: var(--ink-2); font-size: var(--text-13); }
+
+/* ── Zásuvky SEO, Najít a nahradit a Změny ── */
+.ke-sheet.k-drawer { top: 48px; z-index: 1050; }
+.k-app .ke-sheet.k-drawer { top: var(--k-top-h); }
+.ke-sheet .k-drawer__body { display: flex; flex-direction: column; gap: 16px; }
+.ke-sheet .k-field { gap: 4px; }
+.ke-sheet .k-field__label { display: flex; justify-content: space-between; gap: 8px; }
+.ke-sheet textarea.k-input { resize: vertical; }
+.ke-hint { margin: 0; color: var(--muted); font-size: var(--text-12-5); }
+.ke-h3 { margin: 4px 0 0; color: var(--ink); font-size: var(--text-13); font-weight: 600; }
+.ke-warn { margin: 0; color: var(--tone-warn-ink); font-size: var(--text-13); }
+.ke-empty { padding: 40px 0; color: var(--muted); text-align: center; }
+.ke-cnt { color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+.ke-cnt.over { color: var(--tone-warn-ink); }
+.ke-faq { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--line-2); border-radius: var(--radius-shape-10); }
+.ke-vis { padding: 8px 10px; border-radius: var(--radius-xs); background: var(--surface-2); color: var(--ink-2); font-size: var(--text-12-5); }
+.ke-vis b { color: var(--ink); font-weight: 600; }
+.ke-faq .ke-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ke-faq .ke-row[hidden] { display: none; }
+.ke-faq .ke-diffnote { color: var(--tone-warn-ink); font-size: var(--text-12); }
+.ke-change { display: flex; flex-direction: column; gap: 6px; padding-bottom: 14px; border-bottom: 1px solid var(--line-2); }
+.ke-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: var(--muted); font-size: var(--text-12-5); }
+.ke-meta b { color: var(--ink); font-weight: 600; }
+.ke-page { display: flex; flex-direction: column; gap: 12px; }
+.ke-page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: var(--text-12-5); }
+.ke-page-head b { color: var(--ink); font-family: var(--f-mono); font-size: var(--text-13); font-weight: 600; }
+.ke-sheet a:not(.k-btn) { color: var(--ink); }
+/* Najít a nahradit: soubory s výskyty se zaškrtávají, pod cestou ukázka a kam text jde */
+#keFound { display: flex; flex-direction: column; gap: 12px; transition: opacity var(--dur-2) var(--easing-standard); }
+#keFound.ke-busy { opacity: .5; }
+.ke-hits { display: flex; flex-direction: column; }
+.ke-hit { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-2); font-size: var(--text-13); cursor: pointer; }
+.ke-hit .k-check { flex: none; margin-top: 2px; }
+.ke-hit-main { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
+.ke-hit-main .k-mono { color: var(--ink); font-size: var(--text-12); overflow-wrap: anywhere; }
+.ke-hit-sub { color: var(--muted); font-size: var(--text-12); line-height: 1.45; overflow-wrap: anywhere; }
+.ke-hit-sub b { color: var(--ink); font-weight: 600; }
+.ke-hit .ke-n { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ke-hit.ke-locked { cursor: default; }
+.ke-hit.ke-locked .k-mono { color: var(--muted); }
+.ke-hit-lock { color: var(--tone-warn-ink); }
+.ke-ex { padding: 8px 10px; border-radius: var(--radius-xs); background: var(--surface-2); font-size: var(--text-13); }
+
+/* ── Další texty stránky (B7): cíle na stránce, rám prvku, panel, popover a odkryté bloky ── */
+/* obrázek, pole formuláře a text v SVG s texty mimo bloky (data-ke-a z view.edit_view) */
+body.ke-edit :is(img, input, textarea, text, tspan)[data-ke-a] { cursor: pointer; }
+body.ke-edit :is(img, input, textarea)[data-ke-a]:hover { outline: 1px dashed var(--ink-2); outline-offset: 3px; }
+body.ke-edit :is(img, input, textarea)[data-ke-a][data-ke-alock]:hover { outline-color: var(--faint); }
+body.ke-edit :is(text, tspan)[data-ke-a]:hover { text-decoration: underline dashed; text-underline-offset: 3px; }
+body.ke-edit :is(input, textarea)[data-ke-a] { caret-color: transparent; }
+/* rám prvku s popoverem nebo řádku panelu: překryv nad stránkou (.ke-region), obrys na prvku by ořízl obal s overflow: hidden */
+.ke-region.ke-xt-mark { z-index: 995; border: 2px solid var(--ink); }
+/* odkrytý skrytý blok: rám jako u bloku, štítek je .ke-region s .ke-tab (u pravého okraje zarovnaný doprava) */
+body.ke-edit .ke-xt-shown { outline: 1px dashed var(--ink); outline-offset: 3px; }
+.ke-region--end .ke-tab { right: -1px; left: auto; }
+
+/* panel (zásuvka .ke-sheet) */
+.ke-xt-sheet .k-drawer__body { gap: 14px; }
+.ke-xt-seg { flex: none; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.ke-xt-seg .k-seg__opt { flex: none; }
+.ke-xt-group { display: flex; flex-direction: column; gap: 2px; }
+.ke-xt-group + .ke-xt-group { padding-top: 12px; border-top: 1px solid var(--line-2); }
+.ke-xt-group__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ke-xt-group__head .ke-h3 { display: flex; align-items: center; gap: 6px; margin: 0; }
+.ke-xt-group__head .ke-h3 > .k-ic { color: var(--muted); }
+.ke-xt-group > .ke-hint { margin-bottom: 4px; }
+.ke-xt-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  padding: 8px 6px;
+  margin: 0 -6px;
+  border-radius: var(--radius-xs);
+}
+.ke-xt-row:hover, .ke-xt-row--focus { background: var(--surface-2); }
+.ke-xt-row--changed { box-shadow: inset 2px 0 0 var(--ink); }
+.ke-xt-thumb { margin-top: 2px; }
+img.ke-xt-thumb { padding: 2px; background: var(--surface-3); object-fit: contain; }
+.ke-xt-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ke-xt-where { display: flex; align-items: center; gap: 4px; min-width: 0; color: var(--muted); font-size: var(--text-12); }
+.ke-xt-where span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+textarea.k-input.ke-xt-field { min-height: 0; padding: 5px 10px; line-height: 20px; resize: none; overflow: hidden; }
+.ke-xt-row--lock .ke-xt-field, .ke-xt-pop .ke-xt-field[readonly] { background: var(--surface-2); color: var(--ink-2); }
+.ke-xt-note { display: flex; align-items: flex-start; gap: 5px; color: var(--muted); font-size: var(--text-12); }
+.ke-xt-note > .k-ic { flex: none; margin-top: 2px; }
+.ke-xt-was { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; color: var(--muted); font-size: var(--text-12); overflow-wrap: anywhere; }
+.ke-xt-was[hidden] { display: none; }
+.ke-xt-was .k-link { font-size: var(--text-12); }
+.ke-xt-loc { margin-top: 18px; }
+.ke-xt-hidtext { color: var(--ink); font-size: var(--text-13); overflow-wrap: anywhere; }
+.ke-xt-hidmeta { display: flex; flex-wrap: wrap; gap: 4px; }
+.ke-xt-row--hid { grid-template-columns: 32px minmax(0, 1fr); }
+.ke-xt-row--hid .ke-xt-show { grid-column: 2; justify-self: start; }
+.ke-xt-locked { margin-top: 4px; }
+.ke-xt-locked > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  color: var(--ink-2);
+  font-size: var(--text-12-5);
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+}
+.ke-xt-locked > summary::-webkit-details-marker { display: none; }
+.ke-xt-locked > summary .k-ic:last-child { transition: transform var(--dur-2) var(--easing-standard); }
+.ke-xt-locked[open] > summary .k-ic:last-child { transform: rotate(180deg); }
+.ke-xt-why { margin: 6px 0 2px; color: var(--muted); font-size: var(--text-12); }
+.ke-xt-foot .ke-xt-foot__n { color: var(--muted); }
+.ke-xt-foot .k-btn { margin-left: auto; }
+.ke-xt-sheet .k-notice { margin: 0; }
+
+/* popover u prvku (.ke-float) */
+.ke-xt-pop { width: min(420px, calc(100vw - 24px)); }
+.ke-xt-pop__fields { display: flex; flex-direction: column; gap: 6px; }
+.ke-xt-pop__fields .ke-xt-field + .ke-xt-pop__lab { margin-top: 6px; }
+.ke-xt-pop__lab { display: flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: var(--text-12-5); font-weight: 500; }
+.ke-xt-pop__lab > .k-ic { color: var(--muted); }
+.ke-xt-pop__lab .k-mono { color: var(--muted); font-size: var(--text-12); font-weight: 400; }
+.ke-xt-sp { flex: 1; }
+@media (max-width: 639px) { .ke-xt-pop .ke-float__row .k-kbd { display: none; } }
+
+/* ── Panel SEO (B12, prototyp prototype/cms-b12, varianta A): oddíly, texty JSON-LD, O vás ── */
+.ke-seo-sheet .k-drawer__body { position: relative; gap: 14px; padding-top: 14px; }
+.ke-seo-sheet .k-notice { margin: 0; }
+.ke-seo-tabs { flex: none; padding: 0 12px; overflow-x: auto; scrollbar-width: none; }
+.ke-seo-tabs .k-tab { flex: none; height: 42px; gap: 6px; padding: 0 8px; }
+.ke-seo-sec { display: flex; flex-direction: column; gap: 12px; }
+.ke-seo-group { display: flex; flex-direction: column; gap: 4px; }
+.ke-seo-group + .ke-seo-group { padding-top: 14px; border-top: 1px solid var(--line-2); }
+.ke-seo-group__head { display: flex; align-items: center; gap: 6px; }
+.ke-seo-group__head .ke-h3 { display: flex; align-items: baseline; gap: 6px; margin: 0; }
+.ke-seo-group__head .ke-h3 > .k-ic { align-self: center; color: var(--muted); }
+.ke-seo-group > .ke-hint { margin-bottom: 2px; }
+.ke-seo-row { display: flex; flex-direction: column; gap: 5px; margin: 0 -8px; padding: 6px 8px; border-radius: var(--radius-xs); }
+.ke-seo-row--changed { box-shadow: inset 2px 0 0 var(--ink); }
+.ke-seo-lab { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.ke-seo-lab > .k-ic { flex: none; align-self: center; color: var(--muted); }
+.ke-seo-lab label { flex: none; color: var(--ink-2); font-size: var(--text-12-5); font-weight: 500; }
+.ke-seo-key { min-width: 0; overflow: hidden; color: var(--muted); font-size: var(--text-11-5); text-overflow: ellipsis; white-space: nowrap; }
+.ke-seo-sp { flex: 1; }
+.ke-seo-lab .ke-cnt { flex: none; font-size: var(--text-12); }
+textarea.k-input.ke-seo-field { min-height: 0; padding: 5px 10px; line-height: 20px; resize: none; overflow: hidden; }
+.ke-seo-field[readonly] { background: var(--surface-2); color: var(--ink-2); }
+.ke-seo-hint { margin: 0; color: var(--muted); font-size: var(--text-12); }
+.ke-seo-row .ke-xt-was { margin-top: 1px; }
+.ke-seo-choices { display: flex; flex-direction: column; gap: 8px; padding: 4px 0; }
+.ke-seo-dl { margin-top: 2px; }
+.ke-seo-dl > dd { overflow-wrap: anywhere; }
+.ke-seo-sec .ke-faq .ke-seo-row { margin: 0 -6px; }
+@media (max-width: 639px) { .ke-seo-key { display: none; } }
+
+/* ── Toasty a dialogy nad stránkou webu ── */
+.ke-toasts.k-toasts { z-index: 1400; }
+.ke-ui.k-dialog { z-index: 1300; }
+.ke-ui.k-dialog::backdrop { background: var(--scrim); }
+
+/* Náhled stránky se skripty webu: tlačítko zpět do úprav (písmo systému, náhled je v sandboxu) */
+.ke-backedit.k-btn { position: fixed; right: 16px; bottom: 16px; z-index: 9999; font-family: system-ui, sans-serif; box-shadow: var(--shadow-pop); }

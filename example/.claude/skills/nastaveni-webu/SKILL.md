@@ -1,6 +1,6 @@
 ---
 name: nastaveni-webu
-description: Vlastní web z ukázkového webu Khoder CMS a jeho nastavení – požadavky (Python 3.12+), adresa webu a cms.toml, údaje firmy v content/site.json, adaptér build/cms_adapter.py (TITLE_SUFFIX, panel SEO, menu) a deploy z gitu do složky, přes rsync nebo sftp. Použij při zakládání webu z ukázky, změně domény, názvu webu nebo struktury hlavičky a při nastavení či ladění deploye.
+description: Vlastní web z ukázkového webu Khoder CMS a jeho nastavení – požadavky (Python 3.12+), adresa webu a cms.toml, údaje firmy v content/site.json, adaptér build/cms_adapter.py (TITLE_SUFFIX, panel SEO, menu), deploy z gitu do složky, přes rsync nebo sftp, a editor lokálně i jako služba na serveru. Použij při zakládání webu z ukázky, změně domény, názvu webu nebo struktury hlavičky a při nastavení či ladění deploye a editoru.
 ---
 
 # Nastavení webu s Khoder CMS
@@ -114,5 +114,12 @@ na nasazený. Starší commit nasadí jen `--rollback`.
 Volitelně `[deploy.indexnow]` pošle vyhledávačům změněné adresy ze sitemapy: `key_file` je soubor
 s klíčem IndexNow ve `www/` (výchozí `indexnow-key.txt`), `sitemap` cesta sitemapy ve `www/`.
 
-Návod k instalaci editoru jako služby na serveru (přihlášení, publikace do gitu) přibude s první verzí
-balíčku.
+## 6. Editor
+
+- **Lokálně:** `python cms/editor.py` z kořene repa, http://127.0.0.1:8765 bez přihlášení. Publikovat
+  udělá build, commit a push s gitem toho, kdo editor pustil, a commit nasadí. S
+  `deploy = "direct"` v sekci `[publish]` ho nasadí `cms/deploy.py` rovnou na `[deploy.target]`.
+  Má-li web editor na serveru, patří do `cms.toml` `[editor] local_publish = false` a `publish_url`
+  s jeho adresou, lokální editor pak nepublikuje.
+- **Na serveru:** služba s přihlášením, HTTPS, deploy key se zápisem a nasazením přes `cms-deploy`.
+  Postup krok za krokem je v `cms/INSTALACE.md`, soubory služby a proxy v `cms/install/`.

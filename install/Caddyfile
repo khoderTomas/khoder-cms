@@ -1,0 +1,27 @@
+# Caddy: web ze složky deploye a editor za reverse proxy, HTTPS (Let's Encrypt) zařídí Caddy sám.
+# Kopie do /etc/caddy/Caddyfile, domény přepište na svoje. Návod: cms/INSTALACE.md.
+
+www.mojedilna.cz {
+	root * /var/www/mojedilna
+	# odkazy bez .html (/kontakt → kontakt.html)
+	try_files {path} {path}.html
+	file_server
+	handle_errors {
+		@notfound expression {err.status_code} == 404
+		handle @notfound {
+			rewrite * /404.html
+			file_server
+		}
+	}
+}
+
+mojedilna.cz {
+	redir https://www.mojedilna.cz{uri} permanent
+}
+
+editor.mojedilna.cz {
+	# adresa klienta pro brzdu přihlášení
+	reverse_proxy 127.0.0.1:8765 {
+		header_up X-Real-IP {remote_host}
+	}
+}

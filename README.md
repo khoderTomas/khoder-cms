@@ -11,9 +11,9 @@ navzájem, kód nemá cesty webu a v balíčku není jméno konkrétního webu.
 Před první verzí (v0.1.0). Motor zatím běží na jednom webu. Ukázkový web je v `example/`: šablona
 pro vlastní web a zároveň testovací web motoru (`example/README.md`). Nese i návod pro Claude Code
 zájemce: `example/CLAUDE.md` (pravidla, aby texty zůstaly editovatelné) a skilly
-`example/.claude/skills/` (stránky a texty, nastavení adaptéru a deploye). S první verzí přibude návod
-k nasazení na vlastní server a samostatný server editoru s přihlášením. Do té doby se může měnit
-rozhraní adaptéru i `cms.toml`.
+`example/.claude/skills/` (stránky a texty, nastavení adaptéru a deploye). Editor běží lokálně, nebo
+jako služba na vlastním serveru s přihlášením (§ Editor jako server, návod `INSTALACE.md`). Do první
+verze se může měnit rozhraní adaptéru i `cms.toml`.
 
 Testy v tomhle repu: `python -m unittest discover -s tests -t tests` (Python 3.12+, jen standardní
 knihovna; samotný `deploy.py` stačí s 3.11). Část testů běží jen na Linuxu (práva souborů, rsync, procesy jiného uživatele).
@@ -58,6 +58,22 @@ build = ["build.py"]               # Python skript buildu a kontroly ve worktree
 sitemap = ["sitemap.py"]           # Python skript sitemapy
 sitemap_file = "www/sitemap.xml"
 deploy_ssh = "web@127.0.0.1"       # ssh cíl s vynuceným příkazem cms-deploy cms (CMS_DEPLOY_SSH přebíjí)
+# deploy = "direct"                # bez ssh: deploy.py z checkoutu editoru rovnou na [deploy.target]
+```
+
+## Editor jako server
+
+`editor.py` (jen stdlib) hostí editor `app.py` sám. Bez `CMS_URL` běží lokálně na `127.0.0.1` bez
+přihlášení. S `CMS_URL` je to služba za reverse proxy s HTTPS: přihlášení formulářem (`login.py`: soubor
+uživatelů s hashem hesla a rolí, brzda hádání hesel, sezení v SQLite), zápis jen s `X-KE` a Origin
+editoru, sync checkoutu na `origin/main` a restart kódem 10 po změně mimo složku stránek. Šasi a sada
+prvků editoru jsou ve `static/`: `tokens.css`, `components.css`, ikony Lucide `icons.svg` a vrstva
+`host.css`. Proměnné prostředí popisuje hlavička `editor.py`, instalaci na server `INSTALACE.md`
+a soubory `install/`.
+
+```
+python3 cms/editor.py                                    # lokálně, http://127.0.0.1:8765
+python3 cms/editor.py user jana --users users.json --role admin --name "Jana Nováková" --email jana@example.cz
 ```
 
 ## Deploy z gitu

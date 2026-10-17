@@ -1,0 +1,27 @@
+# Editor webu (Khoder CMS) jako služba: cms/editor.py z checkoutu repa webu pod uživatelem cms.
+# Poslouchá jen na 127.0.0.1 (CMS_PORT), ven ho pouští reverse proxy s HTTPS. Návod: cms/INSTALACE.md.
+#   sudo install -m 644 /home/cms/web/cms/install/cms-editor.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now cms-editor
+[Unit]
+Description=Editor webu (Khoder CMS)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=cms
+Group=cms
+WorkingDirectory=/home/cms/web
+EnvironmentFile=/home/cms/editor.env
+# TZ: časy úprav a publikací v editoru; bez bajtkódu, ať build ve worktree publikace nevyrábí .pyc
+Environment=TZ=Europe/Prague PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 cms/editor.py
+# always: po syncu přes změnu kódu editor skončí kódem 10 a má naběhnout s novým kódem
+Restart=always
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,35 @@
+# Deploy webu po pushi do main (doplněk k Publikovat v editoru): GitHub Actions se přihlásí na server
+# jako uživatel web klíčem, který smí jen `cms-deploy deploy` (vynucený příkaz v authorized_keys),
+# a ten nasadí špičku main v plném režimu. Patří do .github/workflows/deploy.yml v repu webu.
+# Secrets DEPLOY_KEY a DEPLOY_KNOWN_HOSTS, variable DEPLOY_SSH (web@server): cms/INSTALACE.md.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    # vlastní runner přes repo variable CI_RUNNER, bez ní runner GitHubu
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
+    steps:
+      - name: cms-deploy na serveru
+        env:
+          KEY: ${{ secrets.DEPLOY_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          TARGET: ${{ vars.DEPLOY_SSH }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/cms_deploy
+          chmod 600 ~/.ssh/cms_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/cms_deploy -o IdentitiesOnly=yes -o BatchMode=yes "$TARGET" deploy

@@ -1,2 +1,4 @@
 # journal úprav editoru (cms.toml [editor] journal), na serveru leží mimo checkout
 .cms/
+# bajtkód Pythonu: build ve worktree publikace ho vyrobí a publikace by ho brala jako změnu
+__pycache__/

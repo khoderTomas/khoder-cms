@@ -152,6 +152,11 @@ class Publisher:
         self.deploy_ssh = os.environ.get("CMS_DEPLOY_SSH") or self.site.deploy_ssh
         self.deploy_cmd = deploy_cmd or (["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", self.deploy_ssh,
                                           "deploy {sha}"] if self.deploy_ssh else None)
+        if not self.deploy_cmd and self.site.deploy_direct:
+            # [publish] deploy = "direct" (lokální editor): deploy.py z checkoutu nasadí commit z origin
+            # na [deploy.target] podle cms.toml z commitu, s klíči a stavem toho, kdo editor pustil
+            self.deploy_cmd = [py, str(Path(__file__).resolve().with_name("deploy.py")), "--repo", str(self.root),
+                               "deploy", "--sha", "{sha}"]
         self.fetch = fetch
         self._lock = threading.Lock()
         self._thread = None
@@ -538,8 +543,8 @@ class Publisher:
     def _deploy(self, commit, entries):
         self._step("deploy", "running")
         if not self.deploy_cmd:
-            raise StepFail("Úpravy jsou v main (commit %s), deploy není nastavený (cms.toml [publish] deploy_ssh)."
-                           % commit[:12])
+            raise StepFail("Úpravy jsou v main (commit %s), deploy není nastavený (cms.toml [publish] deploy_ssh "
+                           "nebo deploy = \"direct\")." % commit[:12])
         rc, out = self._run([c.replace("{sha}", commit) for c in self.deploy_cmd], timeout=600)
         m = DEPLOYED.search(out)
         if rc or not m:

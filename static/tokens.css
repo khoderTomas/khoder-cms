@@ -1,0 +1,138 @@
+/*
+ * tokens.css: tokeny design language editoru Khoder CMS (barvy, písmo, rozměry, stíny, pohyb).
+ *
+ * Kopie exportu sady, needituje se. Vzhled editoru mění až vlastní vrstva načtená po tomhle
+ * souboru (static/host.css). Barva mimo tokeny se nepíše.
+ *
+ * Verze exportu: 2026-10-01.2
+ */
+:root {
+  /* ── Plochy ─────────────────────────────────────────────────────────── */
+  --bg:          #F4F5F7;  /* plátno stránky */
+  --surface:     #FFFFFF;  /* karta, pole, menu */
+  --surface-2:   #F8F9FA;  /* hlavička tabulky, najetí na řádek, jen ke čtení, hláška */
+  --surface-3:   #EFF1F4;  /* dráha přepínače, neutrální štítek, aktivní stránka, najetí v menu */
+
+  /* ── Text: ink → ink-2 → muted. --faint NENÍ barva textu ──────────────── */
+  --ink:         #1F2328;  /* titulky, hodnoty, buňky */
+  --ink-2:       #55606B;  /* popisky, druhý řádek důležitosti */
+  --muted:       #5F6874;  /* metainformace, hlavička tabulky, nápověda pod polem */
+  --faint:       #A2AAB4;  /* jen čáry, ikony, dekor a neaktivní stav */
+
+  /* ── Čáry ───────────────────────────────────────────────────────────── */
+  --line:        #E5E7EB;  /* rám karty, pole, tlačítka */
+  --line-2:      #EEF0F3;  /* dělicí čáry uvnitř karty */
+  --line-3:      #C4CAD2;  /* najetí na pole, rámeček zaškrtávátka, dráha přepínače */
+
+  /* ── Stav: tón nese hodnota, ikona nebo tečka, nikdy plocha karty ──── */
+  --ok:              #1F7A3A;
+  --ok-soft:         #E7F4EA;  /* jen zvýraznění nejlepší hodnoty v tabulce */
+  --err:             #B03030;
+  --err-soft:        #FBE8E8;  /* jen zvýraznění nejhorší hodnoty v tabulce */
+  --tone-warn-ink:   #78350f;  /* varovný text */
+  --tone-warn-icon:  #B7791F;  /* ikona a tečka varování */
+  --tone-danger-ink: #991b1b;  /* najetí na destruktivní spouštěč */
+  --ok-on-dark:      #6EE7A7;  /* stav na tmavé ploše (toast, lišta uložení) */
+  --err-on-dark:     #FFA3A3;
+
+  /* ── Značka: žlutá a grafitové šasi ─────────────────────────────────
+     --accent      plná barva značky; NENESE text ani plochu obsahu
+     --chrome      AA tón značky: primární tlačítko, zaškrtávátko, odkazy,
+                   barevné šasi (bílý text na něm ≥ 4,5 : 1)
+     --link-ink    odkaz a značkový text na bílé
+     Jinou značku dá vrstva načtená po tomhle souboru: --accent, --chrome,
+     --chrome-deep, --chrome-surface a --chrome-end.                       */
+  --accent:         #F5D24A;
+  --accent-soft:    color-mix(in oklab, var(--accent) 9%, #fff);
+  --accent-soft-2:  color-mix(in oklab, var(--accent) 16%, #fff);
+  --chrome:         #302e26;
+  --chrome-deep:    #211f18;
+  --chrome-surface: #eaeae9;
+  --chrome-end:     #302e26;
+  --link-ink:       var(--chrome);
+
+  /* ── Text a plochy na barevném šasi (motiv Barevná) ──────────────────
+     Text jen ve dvou úrovních: 100 % a 92 % bílé. Ikony 80 %. */
+  --on-chrome:            #FFFFFF;
+  --on-chrome-2:          rgba(255, 255, 255, 0.92);
+  --on-chrome-icon:       rgba(255, 255, 255, 0.8);
+  --on-chrome-dekor:      rgba(255, 255, 255, 0.34);
+  --on-chrome-line:       rgba(255, 255, 255, 0.12);
+  --on-chrome-panel:      rgba(255, 255, 255, 0.08);
+  --on-chrome-glass:      rgba(255, 255, 255, 0.1);
+  --on-chrome-glass-2:    rgba(255, 255, 255, 0.14);
+  --on-chrome-glass-line: rgba(255, 255, 255, 0.16);
+  --on-chrome-track:      rgba(0, 0, 0, 0.18);
+  --on-chrome-ok:         #6EE7A7;
+  --on-chrome-warn:       #FCD34D;
+  --on-chrome-err:        #FFA3A3;
+
+  /* ── Grafy: barva značky v datech jen u predikce ─────────────────────── */
+  --chart-series-1: #E0B24A;
+  --chart-series-2: #4D7FD6;
+  --chart-series-3: #DF8D83;
+  --chart-series-4: #4D9D6F;
+  --chart-series-5: #8B7BC9;
+  --chart-series-6: #C97B9D;
+  --chart-others:   var(--muted);
+  --chart-revenue:  #E0B24A;  /* tržby */
+  --slate:          #46505C;  /* zisk, náklady, mikrografy, heatmapa */
+
+  /* ── Kategoriální tóny (výjimka pro kategorie, NE pro stav) ──────────── */
+  --pr-soon:   #1D4F7A;
+  --pr-season: #6D3FA8;
+
+  /* ── Písmo: Geist, čísla tabulková, Geist Mono jen pro kódy ─────────── */
+  --f-sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  --f-mono: "Geist Mono", ui-monospace, "SF Mono", "SFMono-Regular", Menlo, monospace;
+  --text-9:    9px;    /* jen šipka delty */
+  --text-11:   11px;
+  --text-11-5: 11.5px;
+  --text-12:   12px;
+  --text-12-5: 12.5px;
+  --text-13:   13px;
+  --text-13-5: 13.5px;
+  --text-14:   14px;
+  --text-15:   15px;
+  --text-20:   20px;
+  --text-24:   24px;
+  --text-26:   26px;
+  --text-28:   28px;
+  --text-30:   30px;
+
+  /* ── Tvar a výška ovládání ───────────────────────────────────────────── */
+  --radius-xs:            6px;   /* štítek, zvýrazněná buňka, pole xs */
+  --radius-control:       8px;   /* tlačítko, pole, dráha přepínače */
+  --radius-control-inner: 7px;   /* volba uvnitř dráhy přepínače */
+  --radius-shape-10:      10px;  /* menu, hláška, toast, tooltip */
+  --radius-card:          12px;  /* karta, dialog, plovoucí lišta */
+  --h-control:    32px;
+  --h-control-sm: 28px;
+  --h-control-xs: 24px;
+
+  /* ── Rozestupy ───────────────────────────────────────────────────────── */
+  --space-tight:   0.5rem;
+  --space-default: 0.75rem;
+  --space-section: 1rem;
+  --space-block:   1.5rem;
+
+  /* ── Stíny, závoj, fokus ─────────────────────────────────────────────── */
+  --shadow-card: 0 1px 2px rgba(14,14,15,.05);
+  --shadow-pop:
+    0 4px 16px rgba(14, 14, 15, 0.08),
+    0 16px 48px rgba(14, 14, 15, 0.14);
+  --shadow-side: -12px 0 32px -16px rgba(16, 24, 40, 0.22);
+  --elev-seg: 0 1px 2px rgba(16,24,40,.12), 0 0 0 1px rgba(16,24,40,.05);
+  --elev-seg-on: 0 1px 2px rgba(0,0,0,.18);
+  --scrim: rgba(17, 20, 24, 0.32);
+  --ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--link-ink);  /* tlačítka a volby */
+  --ring-field: 0 0 0 3px rgba(31, 35, 40, 0.10);               /* pole: neutrální halo */
+
+  /* ── Pohyb ───────────────────────────────────────────────────────────── */
+  --easing-emphasized: cubic-bezier(0.2, 0.0, 0, 1.0);
+  --easing-standard:   cubic-bezier(0.4, 0, 0.2, 1);   /* barvy a průhlednost */
+  --easing-out-soft:   cubic-bezier(0.22, 1, 0.36, 1); /* pohyb: vstup, posun */
+  --dur-2: 150ms;
+  --dur-3: 200ms;
+  --dur-4: 300ms;
+}

@@ -20,7 +20,8 @@ cms.toml:
   [editor]  adapter (modul adaptéru), journal (journal úprav, výchozí .cms/journal), css (styly
             editačního pohledu pro prvky webu, servíruje se jako <base>/_admin/site.css)
   [publish] build a sitemap (Python skripty s argumenty, spouští se ve worktree publikace),
-            sitemap_file (cesta sitemapy v repu), deploy_ssh (cíl ssh deploye, přebíjí CMS_DEPLOY_SSH)
+            sitemap_file (cesta sitemapy v repu), deploy_ssh (cíl ssh deploye, CMS_DEPLOY_SSH ho přebíjí),
+            deploy = "direct" (bez ssh: deploy.py z checkoutu editoru rovnou na [deploy.target])
 """
 import contextlib
 import importlib.util
@@ -160,6 +161,9 @@ class Site:
         self.sitemap_cmd = list(pub.get("sitemap") or [])
         self.sitemap_rel = pub.get("sitemap_file") or "%s/sitemap.xml" % self.source
         self.deploy_ssh = pub.get("deploy_ssh")
+        if pub.get("deploy") not in (None, "direct"):
+            raise ValueError('cms.toml [publish] deploy umí jen "direct", ne %r' % pub.get("deploy"))
+        self.deploy_direct = pub.get("deploy") == "direct"
 
     # ── stránky ──
     @property

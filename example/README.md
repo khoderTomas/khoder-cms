@@ -69,4 +69,5 @@ a `mailto:` podle `content/site.json`. Stejnou kontrolou projde každé uložen�
 5. Novou stránku přidejte do `www/` i do `content/pages.json`, se značkami hlavičky a patičky, a spusťte
    build.
 
-Editor jako samostatný server s přihlášením a návod na nasazení přibudou s první verzí balíčku.
+Editor se pouští z kořene repa webu: lokálně `python cms/editor.py` (http://127.0.0.1:8765, bez
+přihlášení), na serveru jako služba s přihlášením a HTTPS podle `cms/INSTALACE.md`.

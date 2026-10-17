@@ -1,0 +1,167 @@
+/*
+ * host.css: vrstva samostatného editoru Khoder CMS (editor.py) nad tokens.css, components.css
+ * a editor.css. Lišta s uživatelem, přihlášení, seznam stránek s kartou Nepublikované úpravy,
+ * hlášky syncu a deploye, dialog Publikovat a zdroj stránky (třídy w-, nb- a h-).
+ * Barvy jen z tokenů, hex sem nepatří. Načítá se poslední.
+ */
+
+/* Atribut hidden platí i na prvcích sady s vlastním display (prázdný stav seznamu, sprite ikon) */
+[hidden]:not([hidden="until-found" i]) { display: none !important; }
+
+/* Bannery (editor.js banner) jako .k-notice v toku nad obsahem; prázdné nezabírá mezeru */
+.nb-notices { display: flex; flex-direction: column; gap: 8px; }
+.nb-notices:empty { display: none; }
+
+/* Toasty (editor.js toast): na úzkém okně nepřetečou přes levý okraj */
+.k-toasts { left: 16px; }
+.k-toast { max-width: min(460px, 100%); }
+
+/* ── Lišta: název webu místo loga, vpravo přihlášený uživatel a Odhlásit se ── */
+.h-site { color: var(--ink); font-size: var(--text-15); font-weight: 600; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+.h-user { display: flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: var(--text-12-5); white-space: nowrap; }
+.h-user form { display: contents; }
+@media (max-width: 767px) {
+  .h-site { max-width: 140px; }
+  .h-user__name { display: none; }
+}
+
+/* ── Web: seznam stránek, hlášky syncu a deploye, dialog Publikovat (třídy w-).
+   Co čeká na člověka, má plochu a proužek v tónu. ── */
+/* Hláška s tónem: plocha a proužek, ne jen ikona */
+.k-notice.w-tone--warn {
+  border-color: color-mix(in oklab, var(--tone-warn-icon) 28%, var(--line-2));
+  background: color-mix(in oklab, var(--tone-warn-icon) 8%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--tone-warn-icon);
+  color: var(--ink-2);
+}
+.k-notice.w-tone--err {
+  border-color: color-mix(in oklab, var(--err) 26%, var(--line-2));
+  background: color-mix(in oklab, var(--err) 6%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--err);
+  color: var(--ink-2);
+}
+.k-notice.w-tone--ok {
+  border-color: color-mix(in oklab, var(--ok) 24%, var(--line-2));
+  background: color-mix(in oklab, var(--ok) 6%, var(--surface));
+  color: var(--ink-2);
+}
+.k-notice.w-top { align-items: flex-start; }
+.k-notice.w-top > .k-ic { margin-top: 2px; }
+.w-notices { display: flex; flex-direction: column; gap: 8px; margin-bottom: var(--space-section); }
+.w-notices:empty { display: none; }
+.w-commits { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
+.w-commits li { display: flex; gap: 8px; min-width: 0; }
+.w-commits .k-mono { flex: none; color: var(--muted); }
+.w-commits span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.w-commits .w-who { flex: none; color: var(--muted); }
+@media (max-width: 639px) {
+  .k-notice.w-top { flex-wrap: wrap; }
+  .k-notice.w-top > .k-notice__body { flex-basis: calc(100% - 26px); }
+  .k-notice.w-top > .k-notice__action { margin-left: 26px; }
+  .w-commits li { flex-wrap: wrap; column-gap: 8px; row-gap: 0; }
+  .w-commits span:last-child { flex-basis: 100%; }
+  .w-commits li + li { margin-top: 4px; }
+}
+
+/* Hlavička stránky Web */
+.w-meta > span { min-width: 0; overflow-wrap: anywhere; }
+
+/* Karta Nepublikované úpravy: skupina = stránka, v ní úpravy s rozdílem po slovech */
+.w-pend .k-card__head { flex-wrap: wrap; }
+.w-pg { padding: 12px 20px 14px; border-top: 1px solid var(--line-2); }
+.w-pg:first-of-type { border-top: 0; }
+.w-pg__head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.w-pg__name { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 240px; }
+.w-pg__title { color: var(--ink); font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
+.w-pg__title:hover { text-decoration: underline; text-underline-offset: 3px; }
+.w-pg__slug { color: var(--muted); font-family: var(--f-mono); font-size: var(--text-12); overflow-wrap: anywhere; }
+.w-pg__acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.w-eds { display: flex; flex-direction: column; margin-top: 8px; }
+.w-ed { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 8px 0; border-top: 1px dashed var(--line-2); }
+.w-ed:first-child { border-top: 0; }
+.w-ed__meta { color: var(--muted); font-size: var(--text-12); }
+.w-ed__meta b { color: var(--ink-2); font-weight: 600; }
+.w-ed__diff { grid-column: 1; color: var(--ink); font-size: var(--text-13); line-height: 1.55; overflow-wrap: anywhere; }
+.w-ed__act { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.w-diff del { padding: 0 2px; border-radius: 3px; background: var(--err-soft); color: var(--err); text-decoration: line-through; }
+.w-diff ins { padding: 0 2px; border-radius: 3px; background: var(--ok-soft); color: var(--ok); text-decoration: none; }
+.w-ed--hit { margin: 0 -10px; padding: 8px 10px; border-radius: var(--radius-control); background: color-mix(in oklab, var(--err) 6%, var(--surface)); box-shadow: inset 3px 0 0 var(--err); border-top-color: transparent; }
+.w-hit { display: flex; align-items: center; gap: 4px; color: var(--err); font-size: var(--text-12); font-weight: 500; }
+.w-hit > .k-ic { width: 13px; height: 13px; }
+.w-hit { margin-top: 4px; }
+.w-ed__lab { color: var(--muted); font-size: var(--text-12); }
+.w-pg__note { margin: 6px 0 0; color: var(--muted); font-size: var(--text-12-5); }
+
+/* Tabulka stránek: řádek s neodeslanými úpravami má plochu a proužek */
+.w-list .is-wrap { min-width: 280px; }
+.w-list tbody tr.w-row--pend > td { background: color-mix(in oklab, var(--tone-warn-icon) 7%, var(--surface)); }
+.w-list tbody tr.w-row--pend:hover > td { background: color-mix(in oklab, var(--tone-warn-icon) 11%, var(--surface)); }
+.w-list tbody tr.w-row--pend > td:first-child { box-shadow: inset 3px 0 0 var(--tone-warn-icon); }
+.w-list .w-kind { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); }
+.w-list .w-kind > .k-ic { width: 13px; height: 13px; color: var(--muted); }
+.w-pendcell { display: inline-flex; align-items: center; gap: 6px; color: var(--tone-warn-ink); font-weight: 500; }
+.w-open { color: var(--ink); text-decoration: none; font-weight: 500; }
+.w-open:hover { text-decoration: underline; text-underline-offset: 3px; }
+.w-open:focus-visible { outline: none; border-radius: 4px; box-shadow: var(--ring); }
+.w-fbar { border-bottom: 0; }
+.w-fbar .w-only { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: var(--ink-2); font-size: var(--text-12-5); }
+@media (max-width: 639px) {
+  .w-col-opt { display: none; }
+  .w-list .is-wrap { min-width: 200px; }
+  .w-fbar .w-only { margin-left: 0; }
+  .w-ed { grid-template-columns: minmax(0, 1fr); }
+  .w-ed__act { grid-column: 1; grid-row: auto; justify-self: start; }
+}
+
+/* Dialog Publikovat */
+.w-dlg { display: flex; flex-direction: column; gap: 14px; }
+.w-dlg .k-field { gap: 6px; }
+.w-sum { display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: var(--radius-shape-10); }
+.w-sum__row { display: flex; align-items: baseline; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--line-2); }
+.w-sum__row:first-child { border-top: 0; }
+.w-sum__page { flex: 1; min-width: 0; color: var(--ink); font-weight: 500; overflow-wrap: anywhere; }
+.w-sum__page .w-pg__slug { display: block; font-weight: 400; }
+.w-sum__n { flex: none; color: var(--ink-2); font-size: var(--text-12-5); white-space: nowrap; }
+.w-steps { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; border: 1px solid var(--line-2); border-radius: var(--radius-shape-10); }
+.w-step { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 2px 10px; align-items: start; padding: 9px 12px; border-top: 1px solid var(--line-2); }
+.w-step:first-child { border-top: 0; }
+.w-step > .k-ic { margin-top: 1px; color: var(--faint); }
+.w-step__label { color: var(--ink-2); font-weight: 500; }
+.w-step__t { color: var(--muted); font-size: var(--text-12); font-variant-numeric: tabular-nums; }
+.w-step__detail { grid-column: 2 / -1; color: var(--muted); font-size: var(--text-12-5); overflow-wrap: anywhere; white-space: pre-line; }
+.w-step--done > .k-ic { color: var(--ok); }
+.w-step--done .w-step__label { color: var(--ink); }
+.w-step--run { background: var(--surface-2); }
+.w-step--run > .k-ic { color: var(--ink); animation: w-spin 0.9s linear infinite; }
+.w-step--run .w-step__label { color: var(--ink); font-weight: 600; }
+.w-step--err { background: color-mix(in oklab, var(--err) 6%, var(--surface)); box-shadow: inset 3px 0 0 var(--err); }
+.w-step--err > .k-ic { color: var(--err); }
+.w-step--err .w-step__label { color: var(--err); font-weight: 600; }
+.w-step--err .w-step__detail { color: var(--ink-2); }
+@keyframes w-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .w-step--run > .k-ic { animation: none; } }
+.w-who-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; color: var(--muted); font-size: var(--text-12-5); }
+.w-who-line > .k-ic { width: 14px; height: 14px; }
+.w-links { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.w-links a { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); }
+.w-links a > .k-ic { width: 13px; height: 13px; color: var(--muted); }
+.w-raw { margin: 0; padding: 10px 12px; border-radius: var(--radius-control); background: var(--surface-2); color: var(--ink-2); font: var(--text-12) / 1.5 var(--f-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.w-det > summary { color: var(--ink-2); font-size: var(--text-12-5); cursor: pointer; }
+.w-det[open] > summary { margin-bottom: 6px; }
+.k-dialog__foot .k-btn .k-btn__count { margin-left: 2px; }
+
+/* Celý zdroj stránky (jen role admin) */
+.w-src { display: block; width: 100%; min-height: calc(100vh - var(--k-top-h) - 220px); padding: 12px 14px; font: var(--text-12) / 1.55 var(--f-mono); white-space: pre; overflow: auto; resize: vertical; tab-size: 2; }
+.w-srclock { margin-bottom: 12px; }
+.w-srcout { margin-top: 12px; }
+.w-srcout ul { margin: 6px 0 0; padding-left: 18px; }
+
+/* ── Přihlášení (karta .k-auth sady) ── */
+.h-login { gap: 14px; margin-top: 18px; }
+.h-login .k-btn--block { margin-top: 4px; }
+.k-auth__card > .k-notice { margin-top: 14px; }
+.h-brand { color: var(--ink); font-size: var(--text-20); font-weight: 600; }
+/* Pole na dotyku aspoň 16 px, jinak iOS při psaní zoomuje (sada má 13 px se specifičtějšími selektory) */
+@media (pointer: coarse) {
+  .k-input, .k-affix > input, select.k-input, textarea.k-input { font-size: 16px !important; }
+}

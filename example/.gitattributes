@@ -1,0 +1,2 @@
+# Stránky a šablony mají konce řádků LF (kontrola buildu CRLF odmítne), i na Windows s core.autocrlf.
+* text=auto eol=lf

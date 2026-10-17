@@ -9,7 +9,9 @@ navzájem, kód nemá cesty webu a v balíčku není jméno konkrétního webu.
 ## Stav
 
 Před první verzí (v0.1.0). Motor zatím běží na jednom webu. Ukázkový web je v `example/`: šablona
-pro vlastní web a zároveň testovací web motoru (`example/README.md`). S první verzí přibude návod
+pro vlastní web a zároveň testovací web motoru (`example/README.md`). Nese i návod pro Claude Code
+zájemce: `example/CLAUDE.md` (pravidla, aby texty zůstaly editovatelné) a skilly
+`example/.claude/skills/` (stránky a texty, nastavení adaptéru a deploye). S první verzí přibude návod
 k nasazení na vlastní server a samostatný server editoru s přihlášením. Do té doby se může měnit
 rozhraní adaptéru i `cms.toml`.
 

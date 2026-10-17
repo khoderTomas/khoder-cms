@@ -15,6 +15,9 @@ build/web.py              kroky buildu stránky a kontroly (jediné místo pro b
 build/build.py            build a kontrola celého webu
 build/sitemap.py          www/sitemap.xml ze stránek bez noindex
 build/cms_adapter.py      adaptér: co editor o tomhle webu potřebuje vědět
+CLAUDE.md                 pravidla pro Claude Code: jak měnit web, aby texty zůstaly editovatelné
+.claude/skills/           postupy pro Claude Code: stranky-webu (stránky a texty), nastaveni-webu (nastavení a deploy)
+.gitattributes            konce řádků LF i na Windows (kontrola CRLF odmítne)
 ```
 
 Stránky: úvod, Co vyrábíme (s FAQ), O dílně, Kontakt, Ochrana osobních údajů (owner stránka, admin ji
@@ -54,7 +57,9 @@ a `mailto:` podle `content/site.json`. Stejnou kontrolou projde každé uložen�
 
 ## Vlastní web z ukázky
 
-1. Obsah složky zkopírujte do kořene repa webu a motor do něj jako `cms/`.
+1. Obsah složky zkopírujte do kořene repa webu i se skrytými soubory (`.claude/`, `.gitattributes`,
+   `.gitignore`) a motor do něj jako `cms/`. Claude Code pak v repu najde `CLAUDE.md` a oba skilly,
+   podrobný postup je ve skillu `nastaveni-webu`. V `CLAUDE.md` přepište oddíl „O webu“.
 2. V `cms.toml` nastavte adresu webu (`[deploy] site`, z ní build počítá canonical a sitemapu),
    v `content/site.json` údaje firmy a v `build/cms_adapter.py` název webu v `TITLE_SUFFIX`.
 3. Barvy, písmo a zaoblení jsou proměnné na začátku `www/assets/style.css`, každá barva má hodnotu pro

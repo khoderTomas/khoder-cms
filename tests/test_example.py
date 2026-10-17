@@ -323,5 +323,74 @@ class EditorTest(unittest.TestCase):
         self.assertEqual(r["total"], 0, r["files"])
 
 
+class GuideTest(unittest.TestCase):
+    """Návod pro Claude Code (CLAUDE.md a skilly v .claude/skills/) mluví o tom, co v ukázce a motoru
+    opravdu je: skilly mají platnou hlavičku, příkazy a soubory existují, jména z adaptéru a build/web.py
+    taky a čísla sedí na konstanty."""
+
+    SKILLS = EXAMPLE / ".claude" / "skills"
+    PY = re.compile(r"python3? ((?:\.\./|cms/|build/)[\w/.-]+\.py)")
+    PATH = re.compile(r"`((?:www|content|build)/[\w/.-]+\.\w+)`")
+    UPPER = re.compile(r"`([A-Z][A-Z0-9]*_[A-Z0-9_]+)`")
+    RULES = re.compile(r"`Rules\.(\w+)`")
+
+    def docs(self):
+        return {p.relative_to(EXAMPLE).as_posix(): p.read_text(encoding="utf-8")
+                for p in [EXAMPLE / "CLAUDE.md"] + sorted(self.SKILLS.glob("*/SKILL.md"))}
+
+    def test_skills_have_frontmatter(self):
+        skills = sorted(self.SKILLS.glob("*/SKILL.md"))
+        self.assertEqual([p.parent.name for p in skills], ["nastaveni-webu", "stranky-webu"])
+        for p in skills:
+            m = re.match(r"---\nname: ([a-z0-9-]{1,64})\ndescription: (.+)\n---\n", p.read_text(encoding="utf-8"))
+            self.assertTrue(m, p)
+            self.assertEqual(m.group(1), p.parent.name)
+            self.assertLessEqual(len(m.group(2)), 1024, p)
+        claude = (EXAMPLE / "CLAUDE.md").read_text(encoding="utf-8")
+        for name in re.findall(r"[Ss]kill(?:u|em)? `([a-z0-9-]+)`", claude):
+            self.assertTrue((self.SKILLS / name / "SKILL.md").is_file(), name)
+
+    def test_commands_and_files_exist(self):
+        bad, seen = [], set()
+        for rel, text in self.docs().items():
+            for cmd in self.PY.findall(text):
+                p = CMS / cmd.split("/", 1)[1] if cmd.startswith(("cms/", "../")) else EXAMPLE / cmd
+                seen.add(cmd)
+                if not p.is_file():
+                    bad.append("%s: python %s" % (rel, cmd))
+            files = self.PATH.findall(text)
+            seen.update(files)
+            bad += ["%s: %s" % (rel, f) for f in files if not (EXAMPLE / f).is_file()]
+        self.assertEqual(bad, [])
+        self.assertLessEqual({"build/build.py", "cms/coverage.py", "cms/deploy.py", "../coverage.py",
+                              "content/site.json", "build/cms_adapter.py"}, seen)       # vzory chytají
+
+    def test_names_exist_in_adapter_and_build(self):
+        import cms_adapter as CAD
+        bad, seen = [], set()
+        for rel, text in self.docs().items():
+            upper, rules = self.UPPER.findall(text), self.RULES.findall(text)
+            seen.update(upper + rules)
+            bad += ["%s: %s" % (rel, n) for n in upper if not hasattr(CAD, n) and not hasattr(W, n)]
+            bad += ["%s: Rules.%s" % (rel, n) for n in rules if not hasattr(CAD.Rules, n)]
+        self.assertEqual(bad, [])
+        self.assertLessEqual({"TITLE_SUFFIX", "LD_ALLOW", "STEP_LABEL", "menu", "atom_attrs", "locked_spans"}, seen)
+
+    def test_numbers_and_selectors_match_code(self):
+        import cms_adapter as CAD
+        docs = self.docs()
+        claude, pages = docs["CLAUDE.md"], docs[".claude/skills/stranky-webu/SKILL.md"]
+        self.assertIn("title` nejvýš %d znaků" % W.TITLE_MAX, pages)
+        self.assertIn("`description` nejvýš %d znaků" % W.DESCRIPTION_MAX, pages)
+        menu = CAD.Rules.menu
+        self.assertIn("(`%s`, `%s`, `%s`, šířka %d px)" % (menu["toggle"], menu["nav"], menu["open"], menu["narrow"]),
+                      claude)
+        self.assertIn("`%s` a `%s`" % (menu["frame"]["header"], menu["frame"]["footer"]), claude)
+        self.assertIn("@media (max-width: %dpx)" % menu["narrow"],
+                      (EXAMPLE / "www" / "assets" / "style.css").read_text(encoding="utf-8"))
+        self.assertIn(W.FAQ_ITEM, claude + pages)
+        self.assertIn('<div class="faq-body">', pages)
+
+
 if __name__ == "__main__":
     unittest.main()

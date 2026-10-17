@@ -686,14 +686,15 @@
       done: function (yes) { if (yes) runReplace(d.confirm, !!(d.owners && d.owners.length)); }});
     ownersGate(dlg);
   }
-  // Owner stránky v potvrzení sdílené změny (ADR 0003 dodatek): bez zaškrtnutí nejde uložit
-  function ownersHtml(owners) {
+  // Owner stránky v potvrzení sdílené změny (ADR 0003 dodatek): bez zaškrtnutí nejde uložit.
+  // shared = co mají owner stránky stejné jako ostatní (výchozí menu a patička)
+  function ownersHtml(owners, shared) {
     if (!owners || !owners.length) return '';
     return '<div class="ke-owner" role="group" aria-labelledby="keOwT"><div class="ke-owner__head">' + kic('lock')
       + '<span id="keOwT"><b>Mění i owner stránky:</b> ' + owners.map(function (s) {
         var p = PAGES[s];
         return esc(p && p.name ? p.name + ' (' + slugText(s) + ')' : slugText(s));
-      }).join(' a ') + '. Jejich vlastní texty jsou zamčené (ADR 0003), sdílené menu a patičku mají stejné jako ostatní stránky.</span></div>'
+      }).join(' a ') + '. Jejich vlastní texty jsou zamčené (ADR 0003), ' + (shared || 'sdílené menu a patičku mají stejné') + ' jako ostatní stránky.</span></div>'
       + '<label><input class="k-check" type="checkbox" data-own-ok>Změnit i owner stránky</label></div>';
   }
   function ownersGate(dlg) {
@@ -1655,9 +1656,13 @@
     }
   }
 
+  // Úprava, která změní víc než blok (apply._save_mapped); sdílená hodnota z dat na owner stránkách
+  // chce zaškrtnutí jako sdílená změna menu (ADR 0003 dodatek)
   function confirmSave(el, b) {
-    ask({title: b.message, body: listHtml(b.details), yes: 'Uložit i tak', no: 'Upravit dál',
-      done: function (yes) { if (yes) send(el, b.confirm); else start(el); }});
+    var own = !!(b.owners && b.owners.length);
+    var dlg = ask({title: b.message, body: listHtml(b.details) + ownersHtml(b.owners, 'sdílený text z dat mají stejný'), yes: 'Uložit i tak', no: 'Upravit dál',
+      done: function (yes) { if (yes) send(el, b.confirm, own); else start(el); }});
+    if (own) ownersGate(dlg);
   }
 
   // Sdílená změna menu nebo patičky (apply.save_part): rozdíl po slovech, kde je, kolik stránek

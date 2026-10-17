@@ -303,7 +303,7 @@ class Editor:
             return {"ok": True, "unchanged": True}
         token = hashlib.sha1(("%s|%d|%s|%s" % (slug, n, bhash, after_html)).encode("utf-8")).hexdigest()[:16]
         if kind == "generated" or block.region:
-            return self._save_mapped(slug, src, block, new_inner, confirm, token)
+            return self._save_mapped(slug, src, block, new_inner, confirm, token, owners)
 
         cand = src[:block.node.se] + new_inner + src[block.node.ie:]
         cand, linked = link_jsonld(cand, H.norm(block_text(src, block)),
@@ -341,10 +341,11 @@ class Editor:
         return {"ok": True, "entry": entry["id"], "inner": ablock.inner(ann), "hash": target.hash(cand),
                 "page": B.page_hash(cand), "linked": linked, "pages": sorted(followers)}
 
-    def _save_mapped(self, slug, src, block, new_inner, confirm, token):
+    def _save_mapped(self, slug, src, block, new_inner, confirm, token, owners=False):
         """Úprava bloku podle proveniance: změněné úseky do literálů skriptu nebo hodnot datových
         souborů, zkušební build dotčených stránek (_part_plan: u literálů generované stránky, u dat
-        všechny), kontrola a jeden záznam journalu se zdroji i stránkami."""
+        všechny), kontrola a jeden záznam journalu se zdroji i stránkami. Mění-li sdílená hodnota
+        i jiné owner stránky, chce potvrzení s owners (zaškrtnutí v dialogu, ADR 0003 dodatek)."""
         pv = self.provenance(slug)
         bp = pv.blocks.get(block.n) if pv is not None else None
         if bp is None or bp.unmapped:
@@ -425,11 +426,15 @@ class Editor:
             notes.append("Mění se i hlavička stránky (title, meta nebo JSON-LD): text se tam ukládá prostý.")
         pages = [p for p in plan["pages"] if p != slug]
         if pages:
-            notes.append("Text je sdílený: propíše se i na %s — %s"
+            notes.append("Text je sdílený: propíše se i na %s (%s)"
                          % (_plural(len(pages), "další stránku", "další stránky", "dalších stránek"),
                             ", ".join("/" + p for p in pages[:8]) + (" …" if len(pages) > 8 else "")))
+        own = [p for p in pages if reg[p]["kind"] == "owner"]
         if notes and confirm != token:
-            return {"confirm": token, "message": "Úprava změní víc než tenhle blok.", "details": notes}
+            return {"confirm": token, "message": "Úprava změní víc než tenhle blok.", "details": notes, "owners": own}
+        if own and not owners:
+            raise Fail("Změna mění i owner stránky (%s), potvrď je v dialogu." % ", ".join("/" + p for p in own),
+                       code="owners", status=403)
 
         # 4. zápis: zdroje i všechny změněné stránky v jednom záznamu journalu
         with write_lock(self.root):
@@ -906,7 +911,7 @@ class Editor:
                 notes.append("Mění se i další místo v hlavičce nebo JSON-LD stránky.")
         pages = sorted(p for p in set(outputs) | set(followers) if self.page_rel(p) in writes and p != slug)
         if pages:
-            notes.append("Text je sdílený: propíše se i na %s — %s"
+            notes.append("Text je sdílený: propíše se i na %s (%s)"
                          % (_plural(len(pages), "další stránku", "další stránky", "dalších stránek"),
                             ", ".join("/" + p for p in pages[:8]) + (" …" if len(pages) > 8 else "")))
         return writes, pages, notes, body, followers

@@ -1,0 +1,33 @@
+# Testy balíčku na PR a na main.
+# - Soukromé repo běží jen na ci-boxu (repo variable CI_RUNNER=ci-box a registrovaný runner),
+#   bez ní se job přeskočí, ať soukromé repo nepálí placené minuty GitHubu.
+# - Veřejné repo běží na GitHub-hosted runnerech (zdarma). Před zveřejněním runner odregistrovat
+#   a smazat CI_RUNNER: self-hosted runner by pouštěl kód z cizích PR na box s tokeny jiných projektů.
+# - Python 3.12 je spodní hranice balíčku (pysource čte části f-stringů, PEP 701), 3.13 je ci-box.
+name: Testy
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unittest:
+    if: ${{ vars.CI_RUNNER != '' || !github.event.repository.private }}
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        python: ${{ vars.CI_RUNNER && fromJSON('["system"]') || fromJSON('["3.12", "3.13"]') }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        if: ${{ runner.environment == 'github-hosted' }}
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Khoder CMS
+        run: python3 -m unittest discover -s tests -t tests -p "test_*.py" -v

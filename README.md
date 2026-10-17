@@ -2,9 +2,20 @@
 
 Obecný balíček pro statický web v gitu: editor textů, deploy a sloučení s `main`. Nic v něm
 není o konkrétním webu: nastavení webu je v `cms.toml` v kořeni repa a vše ostatní dodá adaptér
-webu (§ Adaptér webu). Vzniká po jednotkách v úkolu `KHODER-CMS` a půjde vyjmout do samostatného
-repa. Šev hlídá `tests/test_seam.py`: moduly importují jen standardní knihovnu a sebe navzájem,
-kód nemá cesty webu a v balíčku není jméno konkrétního webu.
+webu (§ Adaptér webu). Do repa webu patří jako složka `cms/`, příkazy v tomhle README se pouštějí
+z kořene repa webu. Šev hlídá `tests/test_seam.py`: moduly importují jen standardní knihovnu a sebe
+navzájem, kód nemá cesty webu a v balíčku není jméno konkrétního webu.
+
+## Stav
+
+Před první verzí (v0.1.0). Motor zatím běží na jednom webu. S první verzí přibude ukázkový web, návod
+k nasazení na vlastní server a samostatný server editoru s přihlášením. Do té doby se může měnit
+rozhraní adaptéru i `cms.toml`.
+
+Testy v tomhle repu: `python -m unittest discover -s tests -t tests` (Python 3.12+, jen standardní
+knihovna; samotný `deploy.py` stačí s 3.11). Část testů běží jen na Linuxu (práva souborů, rsync, procesy jiného uživatele).
+
+Licence MIT, viz `LICENSE`.
 
 ## Adaptér webu
 

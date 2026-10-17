@@ -73,6 +73,7 @@ class Rules(CA.Rules):
 
 class Site(CA.Site):
     rules = Rules()
+    contract = 1                                  # rozhraní motoru, pro které je adaptér napsaný (UPGRADING.md)
 
     def __init__(self, root, config=None):
         super().__init__(root, config)

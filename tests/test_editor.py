@@ -508,6 +508,7 @@ class InstallGuideTest(unittest.TestCase):
         unit, env, caddy = self.install["cms-editor.service"], self.install["editor.env"], self.install["Caddyfile"]
         self.assertIn("ExecStart=/usr/bin/python3 cms/editor.py\n", unit)
         self.assertIn("Restart=always\n", unit)                    # restart kódem EXIT_RESTART po syncu
+        self.assertIn("SuccessExitStatus=%d\n" % E.EXIT_RESTART, unit)   # plánovaný restart v logu není chyba
         self.assertIn("WorkingDirectory=/home/cms/web\n", unit)
         self.assertIn("git clone git@github.com:vas-ucet/mojedilna.git ~/web", self.guide)
         self.assertIn("EnvironmentFile=/home/cms/editor.env\n", unit)

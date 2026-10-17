@@ -190,7 +190,7 @@ class Editor:
                 return "Zkušební build generované stránky selhal, úpravy jsou zamčené: %s" % pv.error[-300:]
             return None
         if k == "owner" and slug not in self.unlocked:
-            return "Owner stránka (ADR 0003): nejdřív ji odemkni (jen role admin, na 30 minut)."
+            return "Owner stránka: nejdřív ji odemkni (jen role admin, na 30 minut)."
         return None
 
     def source_lock(self, slug):
@@ -762,7 +762,7 @@ class Editor:
     def seo_lock(self, slug, sp=None):
         k = self.kind(slug)
         if k == "owner" and slug not in self.unlocked:
-            return "Owner stránka (ADR 0003): nejdřív ji odemkni (jen role admin, na 30 minut)."
+            return "Owner stránka: nejdřív ji odemkni (jen role admin, na 30 minut)."
         if sp is not None and sp.error:
             return "Zkušební build generované stránky selhal, SEO je jen ke čtení: %s" % sp.error[-300:]
         return None

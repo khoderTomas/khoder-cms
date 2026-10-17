@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """Adaptér webu: co motor editoru o konkrétním webu neví sám.
 
+Verze balíčku je VERSION (tag vX.Y.Z, CHANGELOG.md). Rozhraní adaptéru má vlastní číslo CONTRACT:
+adaptér webu uvádí ve třídě Site, pro které je napsaný (contract), a load() s jiným číslem skončí
+chybou s odkazem na UPGRADING.md.
+
 Motor zná tři druhy stránek z manifestu stránek ([deploy] pages v cms.toml): ruční (zdrojem je
 soubor stránky), owner (ruční, zamčená do odemčení adminem) a generované (zdrojem jsou textové
 literály skriptů generátoru, pole source). Všechno ostatní dodá web modulem adaptéru, který
@@ -33,9 +37,15 @@ import sys
 import tomllib
 from pathlib import Path
 
+VERSION = "0.1.0"     # verze balíčku: tag v0.1.0, CHANGELOG.md
+CONTRACT = 1          # verze rozhraní adaptéru (Rules, Site, cms.toml), Site.contract adaptéru webu
 CONFIG = "cms.toml"
 # Buildy editoru s nižší prioritou: na serveru sdílí procesor s ostatními službami hostitele.
 NICE = ["nice", "-n", "10"] if os.name == "posix" and shutil.which("nice") else []
+
+
+class ContractError(ValueError):
+    """Adaptér webu je napsaný pro jiné rozhraní motoru (Site.contract != CONTRACT)."""
 
 
 class SiteError(Exception):
@@ -155,6 +165,7 @@ def read_config(root):
 
 class Site:
     rules = Rules()
+    contract = None               # adaptér webu: číslo rozhraní CONTRACT, pro které je napsaný
 
     def __init__(self, root, config=None):
         self.root = Path(root)
@@ -342,9 +353,25 @@ def load(root, config=None):
     běží s kódem adaptéru z repa, ve kterém běží motor."""
     config = read_config(root) if config is None else config
     rel = (config.get("editor") or {}).get("adapter")
-    site = _module(Path(root) / rel).Site(root, config) if rel else Site(root, config)
+    if rel:
+        cls = _module(Path(root) / rel).Site
+        check_contract(cls, rel)
+        site = cls(root, config)
+    else:
+        site = Site(root, config)
     install(site.rules)
     return site
+
+
+def check_contract(cls, rel):
+    """Adaptér rel (třída Site) je napsaný pro rozhraní motoru, jinak ContractError s návodem."""
+    got = getattr(cls, "contract", None)
+    if got == CONTRACT:
+        return
+    why = ("neuvádí, pro které rozhraní motoru je napsaný (contract ve třídě Site)" if got is None
+           else "je napsaný pro rozhraní %s" % got)
+    raise ContractError("Adaptér %s %s, Khoder CMS %s má rozhraní %d. Co v adaptéru změnit, píše "
+                        "UPGRADING.md v balíčku (cms/UPGRADING.md)." % (rel, why, VERSION, CONTRACT))
 
 
 def _module(path):

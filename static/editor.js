@@ -180,9 +180,9 @@
   var OWN_PART = Object.keys(PARTS).length ? ' Menu a patičku upravíš i bez odemčení, změnu potvrdíš v dialogu.' : '';
   if (MODE === 'edit' && LOCK && KIND === 'owner') {
     banner('lock', ROLE === 'admin'
-      ? note('lock', '<b>Owner stránka</b>: texty jsou zamčené (ADR 0003). Odemknout ji smí jen admin, na 30 minut a jen pro sebe.' + OWN_PART,
+      ? note('lock', '<b>Owner stránka</b>: texty jsou zamčené. Odemknout ji smí jen admin, na 30 minut a jen pro sebe.' + OWN_PART,
         '<button class="k-btn k-btn--secondary k-btn--sm" type="button" id="keUnlock">' + kic('lock-open') + 'Odemknout na 30 minut</button>')
-      : note('lock', '<b>Owner stránka</b>: texty jsou zamčené (ADR 0003). Odemknout ji smí jen admin.'));
+      : note('lock', '<b>Owner stránka</b>: texty jsou zamčené. Odemknout ji smí jen admin.'));
     if ($('#keUnlock')) $('#keUnlock').onclick = function () {
       api('POST', '/api/unlock', {slug: SLUG}).then(function (r) {
         if (!r.ok) return toast(r.body.error, 'err');
@@ -694,7 +694,7 @@
       + '<span id="keOwT"><b>Mění i owner stránky:</b> ' + owners.map(function (s) {
         var p = PAGES[s];
         return esc(p && p.name ? p.name + ' (' + slugText(s) + ')' : slugText(s));
-      }).join(' a ') + '. Jejich vlastní texty jsou zamčené (ADR 0003), ' + (shared || 'sdílené menu a patičku mají stejné') + ' jako ostatní stránky.</span></div>'
+      }).join(' a ') + '. Jejich vlastní texty jsou zamčené, ' + (shared || 'sdílené menu a patičku mají stejné') + ' jako ostatní stránky.</span></div>'
       + '<label><input class="k-check" type="checkbox" data-own-ok>Změnit i owner stránky</label></div>';
   }
   function ownersGate(dlg) {
@@ -1135,7 +1135,7 @@
       + '<span id="keSOwT"><b>Mění i owner stránky:</b> ' + owners.map(function (s) {
         var p = PAGES[s];
         return esc(p && p.name ? p.name + ' (' + slugText(s) + ')' : slugText(s));
-      }).join(' a ') + '. Jejich vlastní texty jsou zamčené (ADR 0003), ' + (topics ? 'výchozí témata mají stejná' : 'údaje o vás mají stejné') + ' jako ostatní stránky.</span></div>'
+      }).join(' a ') + '. Jejich vlastní texty jsou zamčené, ' + (topics ? 'výchozí témata mají stejná' : 'údaje o vás mají stejné') + ' jako ostatní stránky.</span></div>'
       + '<label><input class="k-check" type="checkbox" data-own-ok>Změnit i owner stránky</label></div>';
   }
   function seoListDiff(a, b) {

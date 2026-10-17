@@ -19,9 +19,16 @@ Postup od ukázky k vlastnímu webu. Po každém kroku musí `python build/build
 ## 1. Repo z ukázky
 
 1. Obsah složky ukázky zkopírujte do kořene repa webu i se skrytými soubory (`.claude/`,
-   `.gitattributes`, `.gitignore`). Motor patří do složky `cms/` jako kopie vydané verze Khoder CMS.
-2. `python build/build.py` a `python cms/coverage.py` musí projít ještě před první změnou.
-3. Commit: od teď se každá změna dá vrátit.
+   `.gitattributes`, `.gitignore`) a commitněte. Větev webu je `main` (`[deploy] branch` v `cms.toml`,
+   deploy nasazuje jen commit z `origin/main`). Klon prázdného repa může mít jinou výchozí větev,
+   proto po prvním commitu `git branch -M main` a `git push -u origin main`.
+2. Motor převezměte do složky `cms/` z vydané verze (`git subtree add` chce aspoň jeden commit):
+   ```
+   git subtree add --prefix=cms https://github.com/khoderTomas/khoder-cms.git v0.1.0 --squash
+   ```
+   Ve webu se `cms/` neupravuje. Novou verzi stáhne `git subtree pull` podle `cms/UPGRADING.md`.
+3. `python build/build.py` a `python cms/coverage.py` musí projít ještě před první změnou. Od teď
+   se každá změna dá vrátit.
 
 ## 2. Adresa webu
 

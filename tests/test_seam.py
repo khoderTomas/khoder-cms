@@ -6,7 +6,8 @@
   moduly ukázkového webu (example/build/, fixtura motoru);
 - kód motoru (py, js, css, spouštěč; bez testů) nemá cesty webu (build/, content/) a nesahá mimo repo;
   ukázkový web example/ je web, ne motor, jeho kód tyhle dvě kontroly nehlídají;
-- v celém cms/ není „khoder“ kromě názvu balíčku Khoder CMS (LICENSE nese jméno autora, .git není balíček),
+- v celém cms/ není „khoder“ kromě názvu balíčku Khoder CMS a adresy jeho repa (LICENSE nese jméno autora,
+  .git není balíček),
   ani v ukázkovém webu.
 
   python -m unittest discover -s cms/tests -t cms/tests -p "test_seam.py"
@@ -27,7 +28,7 @@ ENGINE = [p for p in CODE if p.parent.name != "tests"]       # testy mají synte
 OWN = {p.stem for p in CMS.glob("*.py")} | {p.stem for p in (CMS / "tests").glob("*.py")}
 EXAMPLE = {p.stem for p in (CMS / "example" / "build").glob("*.py")}    # testy: fixtura motoru
 SITE_PATH = re.compile(r"\b(?:build|content)/|parents\[[2-9]\]")
-KHODER = re.compile(r"khoder(?![ -]cms)", re.I)
+KHODER = re.compile(r"khoder(?![ -]cms|Tomas/khoder-cms\b)", re.I)   # adresa repa balíčku smí (UPGRADING.md)
 
 
 def rel(p):
@@ -67,6 +68,8 @@ class SeamTest(unittest.TestCase):
         self.assertTrue(SITE_PATH.search("Path(__file__).resolve().parents[2]"))
         self.assertTrue(KHODER.search("https://www.khoder.cz"))
         self.assertFalse(KHODER.search("Khoder CMS"))
+        self.assertFalse(KHODER.search("git subtree add --prefix=cms https://github.com/khoderTomas/khoder-cms.git v0.1.0"))
+        self.assertTrue(KHODER.search("https://github.com/khoderTomas/khoder.cz"))
 
 
 if __name__ == "__main__":

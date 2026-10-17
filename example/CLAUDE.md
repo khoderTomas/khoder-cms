@@ -26,7 +26,7 @@ build/web.py           kroky buildu a kontroly (jediné místo, editor je poušt
 build/build.py         build a kontrola celého webu
 build/sitemap.py       www/sitemap.xml ze stránek bez noindex
 build/cms_adapter.py   adaptér: co editor o tomhle webu potřebuje vědět
-cms/                   motor Khoder CMS (needitovat, aktualizuje se celý z nové verze)
+cms/                   motor Khoder CMS (needitovat, nová verze přes git subtree pull, cms/UPGRADING.md)
 ```
 
 ## Příkazy

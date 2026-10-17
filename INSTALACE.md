@@ -269,7 +269,8 @@ Publikovat sloučí úpravy s `main`, udělá build, commit a push s vaším git
 
 ## Provoz
 
-- **Aktualizace balíčku.** Novou verzi `cms/` dostane server pushem do `main`. Editor do `CMS_SYNC_S`
+- **Aktualizace balíčku.** Novou verzi `cms/` přinese do repa webu `git subtree pull` tagu
+  (`cms/UPGRADING.md`), server ji dostane pushem do `main`. Editor do `CMS_SYNC_S`
   sekund (výchozí 120) posune checkout a po změně mimo složku stránek se sám restartuje. Novou verzi
   `cms/bin/cms-deploy` zkopírujte do `/home/web/bin/` ručně (§ 2, krok 3).
 - **Neodeslané úpravy a změny v main.** Sync posouvá checkout jen dopředu a soubor s neodeslanou úpravou

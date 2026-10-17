@@ -17,6 +17,8 @@ Environment=TZ=Europe/Prague PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 ExecStart=/usr/bin/python3 cms/editor.py
 # always: po syncu přes změnu kódu editor skončí kódem 10 a má naběhnout s novým kódem
 Restart=always
+# kód 10 je plánovaný restart po syncu, ne chyba: v logu pak není „Failed“
+SuccessExitStatus=10
 RestartSec=3
 UMask=0077
 NoNewPrivileges=true

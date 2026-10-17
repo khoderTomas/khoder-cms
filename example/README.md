@@ -58,8 +58,9 @@ a `mailto:` podle `content/site.json`. Stejnou kontrolou projde každé uložen�
 ## Vlastní web z ukázky
 
 1. Obsah složky zkopírujte do kořene repa webu i se skrytými soubory (`.claude/`, `.gitattributes`,
-   `.gitignore`) a motor do něj jako `cms/`. Claude Code pak v repu najde `CLAUDE.md` a oba skilly,
-   podrobný postup je ve skillu `nastaveni-webu`. V `CLAUDE.md` přepište oddíl „O webu“.
+   `.gitignore`) a motor do něj jako `cms/` z vydané verze (`git subtree add`, postup v `UPGRADING.md`
+   motoru). Větev webu je `main`, deploy jinou nenasadí. Claude Code pak v repu najde `CLAUDE.md`
+   a oba skilly, podrobný postup je ve skillu `nastaveni-webu`. V `CLAUDE.md` přepište oddíl „O webu“.
 2. V `cms.toml` nastavte adresu webu (`[deploy] site`, z ní build počítá canonical a sitemapu),
    v `content/site.json` údaje firmy a v `build/cms_adapter.py` název webu v `TITLE_SUFFIX`.
 3. Barvy, písmo a zaoblení jsou proměnné na začátku `www/assets/style.css`, každá barva má hodnotu pro

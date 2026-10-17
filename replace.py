@@ -351,7 +351,7 @@ def _find(editor, q, sig, fs):
             continue
         lock = None
         if kind == "owner" and slug not in editor.unlocked:
-            lock = "Owner stránka (ADR 0003): nahradit v ní jde až po odemčení."
+            lock = "Owner stránka: nahradit v ní jde až po odemčení."
         files.append({"path": rel, "kind": kind, "slug": slug, "n": sum(len(h[3]) for h in hits), "lock": lock,
                       "pages": [slug], "where": _where({h[0] for h in hits}), "sample": first})
         internal[rel] = {"type": "html", "slug": slug, "hits": hits}

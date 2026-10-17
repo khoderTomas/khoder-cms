@@ -8,12 +8,19 @@ navzájem, kód nemá cesty webu a v balíčku není jméno konkrétního webu.
 
 ## Stav
 
-Před první verzí (v0.1.0). Motor zatím běží na jednom webu. Ukázkový web je v `example/`: šablona
+Verze 0.1.0 (`CHANGELOG.md`), rozhraní adaptéru 1. Do repa webu se motor převezme a aktualizuje jako
+`git subtree` z tagu, postup a co při nové verzi upravit v adaptéru je v `UPGRADING.md`:
+
+```
+git subtree add --prefix=cms https://github.com/khoderTomas/khoder-cms.git v0.1.0 --squash
+```
+
+Ukázkový web je v `example/`: šablona
 pro vlastní web a zároveň testovací web motoru (`example/README.md`). Nese i návod pro Claude Code
 zájemce: `example/CLAUDE.md` (pravidla, aby texty zůstaly editovatelné) a skilly
 `example/.claude/skills/` (stránky a texty, nastavení adaptéru a deploye). Editor běží lokálně, nebo
-jako služba na vlastním serveru s přihlášením (§ Editor jako server, návod `INSTALACE.md`). Do první
-verze se může měnit rozhraní adaptéru i `cms.toml`.
+jako služba na vlastním serveru s přihlášením (§ Editor jako server, návod `INSTALACE.md`). Do verze
+1.0 může vedlejší verze (0.x.0) změnit rozhraní adaptéru i `cms.toml`, opravná verze ne.
 
 Testy v tomhle repu: `python -m unittest discover -s tests -t tests` (Python 3.12+, jen standardní
 knihovna; samotný `deploy.py` stačí s 3.11). Část testů běží jen na Linuxu (práva souborů, rsync, procesy jiného uživatele).
@@ -43,7 +50,9 @@ skriptů generátoru, pole `source`). Ostatní dodá modul z `[editor] adapter` 
   `shared_files`), datové soubory s texty stránek (`data_files`), zkušební build celého webu
   (`build_site`: generátor a všechny stránky pod overlay, výchozí implementace stačí), data
   sdíleného objektu JSON-LD (`entity_data`, `entity_text`, `entity_block`) a stránky, kterým jeho
-  změna změní výstup (`entity_reach`), a úklid prostředí pro build při publikaci.
+  změna změní výstup (`entity_reach`), a úklid prostředí pro build při publikaci. Třída uvádí
+  `contract`, číslo rozhraní motoru, pro které je adaptér napsaný. `adapter.load()` s jiným číslem
+  než `CONTRACT` skončí chybou `ContractError` s odkazem na `UPGRADING.md`.
 
 Hodnotu v JSON (blok JSON-LD na stránce, data webu) mění `jsonsource.py` jen na cestě, zbytek textu
 zůstává v původním formátu; řetězec z dat (`write_string`) i v původním escapování tokenu.

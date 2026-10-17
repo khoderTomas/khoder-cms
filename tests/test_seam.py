@@ -2,9 +2,12 @@
 """Šev mezi motorem a webem: cms/ je obecný balíček, web se mu ukazuje jen přes adaptér
 (cms.toml [editor] adapter, adapter.py).
 
-- moduly cms/ importují jen standardní knihovnu a sebe navzájem (ne build/ ani hostitele);
+- moduly cms/ importují jen standardní knihovnu a sebe navzájem (ne build/ ani hostitele), testy navíc
+  moduly ukázkového webu (example/build/, fixtura motoru);
 - kód motoru (py, js, css, spouštěč; bez testů) nemá cesty webu (build/, content/) a nesahá mimo repo;
-- v celém cms/ není „khoder“ kromě názvu balíčku Khoder CMS (LICENSE nese jméno autora, .git není balíček).
+  ukázkový web example/ je web, ne motor, jeho kód tyhle dvě kontroly nehlídají;
+- v celém cms/ není „khoder“ kromě názvu balíčku Khoder CMS (LICENSE nese jméno autora, .git není balíček),
+  ani v ukázkovém webu.
 
   python -m unittest discover -s cms/tests -t cms/tests -p "test_seam.py"
 """
@@ -18,9 +21,11 @@ CMS = Path(__file__).resolve().parents[1]
 # tenhle test nese vzory, které hledá, sám se neprohledává
 FILES = [p for p in CMS.rglob("*") if p.is_file() and not {"__pycache__", ".git"} & set(p.relative_to(CMS).parts)
          and p.suffix != ".pyc" and p != Path(__file__).resolve() and p.relative_to(CMS).as_posix() != "LICENSE"]
-CODE = [p for p in FILES if p.suffix in (".py", ".js", ".css") or p.parent.name == "bin"]
+CODE = [p for p in FILES if (p.suffix in (".py", ".js", ".css") or p.parent.name == "bin")
+        and p.relative_to(CMS).parts[0] != "example"]
 ENGINE = [p for p in CODE if p.parent.name != "tests"]       # testy mají syntetická repa s vlastními cestami
 OWN = {p.stem for p in CMS.glob("*.py")} | {p.stem for p in (CMS / "tests").glob("*.py")}
+EXAMPLE = {p.stem for p in (CMS / "example" / "build").glob("*.py")}    # testy: fixtura motoru
 SITE_PATH = re.compile(r"\b(?:build|content)/|parents\[[2-9]\]")
 KHODER = re.compile(r"khoder(?![ -]cms)", re.I)
 
@@ -33,6 +38,7 @@ class SeamTest(unittest.TestCase):
     def test_imports_only_stdlib_and_cms(self):
         bad = []
         for f in (p for p in CODE if p.suffix == ".py"):
+            own = OWN | EXAMPLE if f.parent.name == "tests" else OWN
             for n in ast.walk(ast.parse(f.read_text(encoding="utf-8"))):
                 if isinstance(n, ast.Import):
                     names = [a.name for a in n.names]
@@ -41,7 +47,7 @@ class SeamTest(unittest.TestCase):
                 else:
                     continue
                 bad += ["%s:%d %s" % (rel(f), n.lineno, x) for x in names
-                        if x.split(".")[0] not in sys.stdlib_module_names and x.split(".")[0] not in OWN]
+                        if x.split(".")[0] not in sys.stdlib_module_names and x.split(".")[0] not in own]
         self.assertEqual(bad, [])
 
     def test_no_site_paths(self):

@@ -8,12 +8,14 @@ navzájem, kód nemá cesty webu a v balíčku není jméno konkrétního webu.
 
 ## Stav
 
-Před první verzí (v0.1.0). Motor zatím běží na jednom webu. S první verzí přibude ukázkový web, návod
+Před první verzí (v0.1.0). Motor zatím běží na jednom webu. Ukázkový web je v `example/`: šablona
+pro vlastní web a zároveň testovací web motoru (`example/README.md`). S první verzí přibude návod
 k nasazení na vlastní server a samostatný server editoru s přihlášením. Do té doby se může měnit
 rozhraní adaptéru i `cms.toml`.
 
 Testy v tomhle repu: `python -m unittest discover -s tests -t tests` (Python 3.12+, jen standardní
 knihovna; samotný `deploy.py` stačí s 3.11). Část testů běží jen na Linuxu (práva souborů, rsync, procesy jiného uživatele).
+`tests/test_example.py` pouští nad kopií ukázkového webu build, kontroly, deploy, pokrytí a úpravy v editoru.
 
 Licence MIT, viz `LICENSE`.
 

@@ -1,0 +1,26 @@
+{
+  "business": {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "@id": "https://www.example.com/#business",
+    "name": "Truhlářství Habr",
+    "description": "Truhlářská dílna, která vyrábí kuchyně, vestavěné skříně a nábytek na míru.",
+    "url": "https://www.example.com/",
+    "telephone": "+420123456789",
+    "email": "dilna@example.com",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Ukázková 12",
+      "addressLocality": "Praha",
+      "postalCode": "100 00",
+      "addressCountry": "CZ"
+    },
+    "openingHours": "Mo-Fr 07:00-16:00",
+    "knowsAbout": [
+      "Kuchyně na míru",
+      "Vestavěné skříně",
+      "Renovace nábytku"
+    ]
+  },
+  "pages": {}
+}

@@ -1,0 +1,23 @@
+# Nastavení Khoder CMS pro ukázkový web. Motor je obecný, všechno o tomhle webu je tady
+# a v adaptéru build/cms_adapter.py (rozhraní cms/adapter.py v balíčku).
+
+[deploy]
+source = "www"                       # stránky webu: zdroj i výstup buildu, nasazuje se celá složka
+branch = "main"
+remote = "origin"
+site = "https://www.example.com"
+pages = "content/pages.json"         # manifest: každé HTML ve www/ v něm, každá položka ve www/
+pages_field = "output"
+
+[deploy.target]
+kind = "local"                       # local: path · rsync: dest, ssh · sftp: host, path, args
+path = "/var/www/example"
+
+[editor]
+adapter = "build/cms_adapter.py"
+journal = ".cms/journal"             # journal úprav editoru (na serveru mimo checkout, CMS_JOURNAL)
+
+[publish]
+build = ["build/build.py"]
+sitemap = ["build/sitemap.py"]
+sitemap_file = "www/sitemap.xml"

@@ -1,0 +1,32 @@
+{
+  "404": {
+    "kind": "handbuilt",
+    "output": "www/404.html",
+    "source": "www/404.html"
+  },
+  "index": {
+    "kind": "handbuilt",
+    "output": "www/index.html",
+    "source": "www/index.html"
+  },
+  "kontakt": {
+    "kind": "handbuilt",
+    "output": "www/kontakt.html",
+    "source": "www/kontakt.html"
+  },
+  "o-dilne": {
+    "kind": "handbuilt",
+    "output": "www/o-dilne.html",
+    "source": "www/o-dilne.html"
+  },
+  "ochrana-osobnich-udaju": {
+    "kind": "owner",
+    "output": "www/ochrana-osobnich-udaju.html",
+    "source": "www/ochrana-osobnich-udaju.html"
+  },
+  "sluzby": {
+    "kind": "handbuilt",
+    "output": "www/sluzby.html",
+    "source": "www/sluzby.html"
+  }
+}

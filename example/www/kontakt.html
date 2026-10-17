@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kontakt a poptávka | Truhlářství Habr</title>
+<meta name="description" content="Adresa dílny, telefon a e-mail. Co nám poslat do poptávky, abychom vám mohli rychle říct cenu a termín.">
+<link rel="canonical" href="https://www.example.com/kontakt">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.example.com/kontakt">
+<meta property="og:title" content="Kontakt a poptávka">
+<meta property="og:description" content="Adresa dílny, telefon a e-mail. Co poslat do poptávky.">
+<meta property="og:locale" content="cs_CZ">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ContactPage",
+  "name": "Kontakt a poptávka",
+  "description": "Adresa dílny, telefon, e-mail a co poslat do poptávky."
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "@id": "https://www.example.com/#business",
+  "name": "Truhlářství Habr",
+  "description": "Truhlářská dílna, která vyrábí kuchyně, vestavěné skříně a nábytek na míru.",
+  "url": "https://www.example.com/",
+  "telephone": "+420123456789",
+  "email": "dilna@example.com",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Ukázková 12",
+    "addressLocality": "Praha",
+    "postalCode": "100 00",
+    "addressCountry": "CZ"
+  },
+  "openingHours": "Mo-Fr 07:00-16:00",
+  "knowsAbout": [
+    "Kuchyně na míru",
+    "Vestavěné skříně",
+    "Renovace nábytku"
+  ]
+}
+</script>
+</head>
+<body>
+<!-- PARTIAL:header -->
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="/">Truhlářství Habr</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    <nav class="site-nav" id="site-nav" aria-label="Hlavní menu">
+      <a href="/sluzby">Co vyrábíme</a>
+      <a href="/o-dilne">O dílně</a>
+      <a href="/kontakt" aria-current="page">Kontakt</a>
+      <a class="button" href="/kontakt#poptavka">Poptat zakázku</a>
+    </nav>
+  </div>
+</header>
+<!-- /PARTIAL:header -->
+<main>
+  <section class="page-head">
+    <div class="wrap">
+      <h1>Kontakt</h1>
+      <p class="lead">Nejrychleji nás zastihnete ráno mezi sedmou a&nbsp;osmou, než se rozjede výroba.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap columns">
+      <div class="item">
+        <h2>Dílna</h2>
+        <p data-site="address">Ukázková 12, 100 00 Praha</p>
+        <p>Po–Pá 7–16 hodin, jinak po domluvě.</p>
+      </div>
+      <div class="item">
+        <h2>Telefon a&nbsp;e-mail</h2>
+        <p><a data-site="telephone" href="tel:+420123456789">+420 123 456 789</a></p>
+        <p><a data-site="email" href="mailto:dilna@example.com">dilna@example.com</a></p>
+      </div>
+      <div class="item">
+        <h2>Jak k&nbsp;nám</h2>
+        <p>Dílna je ve dvoře za domem, vjezd je z&nbsp;boční ulice. Parkovat můžete přímo u&nbsp;vrat.</p>
+      </div>
+    </div>
+    <div class="wrap">
+      <figure class="photo photo--wide">
+        <img src="/assets/img/vrata.webp" srcset="/assets/img/vrata-750.webp 750w, /assets/img/vrata.webp 1500w" sizes="100vw" alt="Otevřená vrata dílny ve dvoře za domem" width="1500" height="1000" loading="lazy">
+      </figure>
+    </div>
+  </section>
+
+  <section class="section section--rule" id="poptavka">
+    <div class="wrap split split--top">
+      <h2>Co poslat do poptávky</h2>
+      <div>
+        <p class="lead">Stačí pár řádků e-mailem. Čím víc toho víme předem, tím přesnější bude první odhad ceny.</p>
+        <ul class="ticks">
+          <li>co chcete vyrobit a&nbsp;do jaké místnosti</li>
+          <li>přibližné rozměry, klidně od oka</li>
+          <li>fotku místa, kam nábytek přijde</li>
+          <li>představu o&nbsp;materiálu a&nbsp;termínu</li>
+        </ul>
+        <p class="actions"><a class="button" href="mailto:dilna@example.com?subject=Popt%C3%A1vka">Napsat poptávku</a></p>
+      </div>
+    </div>
+  </section>
+</main>
+<!-- PARTIAL:footer -->
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div class="site-footer__about">
+      <p>Kuchyně, skříně a&nbsp;nábytek na míru z&nbsp;vlastní dílny.</p>
+    </div>
+    <nav class="site-footer__nav" aria-label="Odkazy v patičce">
+      <a href="/sluzby">Co vyrábíme</a>
+      <a href="/o-dilne">O dílně</a>
+      <a href="/kontakt">Kontakt</a>
+      <a href="/ochrana-osobnich-udaju">Ochrana osobních údajů</a>
+    </nav>
+    <p class="site-footer__name">Truhlářství Habr</p>
+    <p class="site-footer__note">Ukázkový web Khoder CMS. Firma, údaje i&nbsp;fotky jsou smyšlené, fotky vytvořila AI.</p>
+  </div>
+</footer>
+<!-- /PARTIAL:footer -->
+<script src="/assets/menu.js" defer></script>
+</body>
+</html>

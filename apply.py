@@ -7,11 +7,13 @@ neprojde injektory a verify stejně jako při buildu.
   3. kontrola efektu: změnilo se jen to, co uživatel napsal; jinak potvrzení
   4. zápis pod build lockem přes journal (atomicky, s bajty „před“)
 
-Generovaná stránka (skript stránky a sdílené soubory generátoru, adapter.Site.page_sources):
-úprava se zapíše do literálů skriptu podle proveniance (provenance.py), zkušební build skriptu
-(nebo celého generátoru, když se mění sdílený soubor) do tempu dá nové HTML všech dotčených
-stránek a ty projdou stejným buildem v paměti a kontrolou. Journal pak nese skript i všechny
-změněné stránky, takže Vrátit vrátí všechno najednou.
+Generovaná stránka (skript stránky a sdílené soubory generátoru, adapter.Site.page_sources) a blok
+oblasti odemčené rodiny (Block.region, texty z datových souborů, B8): úprava se zapíše do literálů
+skriptu nebo do hodnot datového souboru podle proveniance (provenance.py, sonda celého webu s cache
+a dohříváním na pozadí), zkušební build dá nové HTML všech dotčených stránek (skript stránky, celý
+generátor u sdíleného souboru, u dat všechny stránky pod overlay) a ty projdou stejným buildem
+v paměti a kontrolou. Journal pak nese zdroje i všechny změněné stránky, takže Vrátit vrátí všechno
+najednou.
 
 Panel SEO (seo.py) jde stejnou cestou: title, description, og/twitter a FAQ
 v JSON-LD jako prostý text, u generované stránky do literálu skriptu, zkušební
@@ -125,7 +127,10 @@ class Editor:
         self.journal = Journal(self.root, journal_dir or self.root / self.site.journal_rel, who=_actor_name)
         self._unlocks = {}              # login → {slug: konec odemčení (epoch)}
         self._audit = threading.Lock()
-        self._prov = {}                 # slug → PageProv (platí, dokud sedí otisk zdrojů)
+        self._siteprov = None           # provenance.SiteProv poslední sondy celého webu
+        self._probe_lock = threading.Lock()
+        self._warm_lock = threading.Lock()
+        self._warmer = None             # vlákno dohřívání sondy (warm)
         self._seo = {}                  # slug → SeoProv (literály polí SEO, stejný otisk)
 
     # ── odemčení owner stránek (per uživatel, s vypršením) ──
@@ -175,12 +180,13 @@ class Editor:
         with open(self.root / self.page_rel(slug), encoding="utf-8", newline="") as f:
             return f.read()
 
-    def lock_reason(self, slug):
-        """Proč je celá stránka zamčená, nebo None."""
+    def lock_reason(self, slug, stale=False):
+        """Proč je celá stránka zamčená, nebo None. stale = u generované stránky stačí poslední
+        známá proveniance (bez sondy, odpověď po uložení)."""
         k = self.kind(slug)
         if k == "generated":
-            pv = self.provenance(slug)
-            if pv.error:
+            pv = self.provenance(slug, stale=stale)
+            if pv is not None and pv.error:
                 return "Zkušební build generované stránky selhal, úpravy jsou zamčené: %s" % pv.error[-300:]
             return None
         if k == "owner" and slug not in self.unlocked:
@@ -199,15 +205,48 @@ class Editor:
         """Skript generované stránky (cesta v repu)."""
         return self.registry()[slug]["source"]
 
-    def provenance(self, slug, src=None):
-        """Proveniance bloků generované stránky, cache podle otisku stránky a zdrojů."""
-        src = self.read_page(slug) if src is None else src
-        key = PV.cache_key(src, PV.sources(self.site, slug))
-        pv = self._prov.get(slug)
-        if pv is None or pv.key != key:
-            pv = PV.probe(self.site, slug, src)
-            self._prov[slug] = pv
-        return pv
+    def mapped(self, slug, src):
+        """Má stránka bloky, které se upravují podle proveniance (generovaná stránka, nebo blok
+        oblasti odemčené rodiny)?"""
+        if self.kind(slug) == "generated":
+            return True
+        return bool(AD.RULES.unlocked) and any(b.region for b in B.blocks(src))
+
+    def provenance(self, slug, stale=False):
+        """Proveniance kandidátních bloků stránky ze sondy celého webu (provenance.probe_site). Výsledek
+        stránky platí, dokud sedí ona a soubory, ze kterých má texty (i ze starší sondy); jinak nová
+        sonda, nebo ta, která právě běží. stale = jen poslední známý výsledek bez sondy (nebo None)."""
+        sp = self._siteprov
+        pv = sp.pages.get(slug) if sp is not None else None
+        if stale:
+            return pv
+        try:
+            if pv is not None and pv.key == PV.page_key(self.site, slug, pv.deps):
+                return pv
+        except FileNotFoundError:
+            pass
+        return self.site_prov().pages.get(slug)
+
+    def site_prov(self):
+        """SiteProv pro aktuální otisk webu. Sondu dělá jedno vlákno, další volání na ni počká."""
+        with self._probe_lock:
+            key = PV.fingerprint(self.site)
+            if self._siteprov is None or self._siteprov.key != key:
+                self._siteprov = PV.probe_site(self.site, key)
+            return self._siteprov
+
+    def warm(self):
+        """Sonda celého webu na pozadí (po zápisu, při startu serveru): další stránka se otevře bez čekání."""
+        def run():
+            try:
+                while self.site_prov().key != PV.fingerprint(self.site):
+                    pass
+            except Exception:                    # noqa: BLE001  (sondu pak udělá první požadavek sám)
+                pass
+        with self._warm_lock:
+            if self._warmer is None or not self._warmer.is_alive():
+                self._warmer = threading.Thread(target=run, name="cms-probe", daemon=True)
+                self._warmer.start()
 
     # ── build v paměti ──
     def inject(self, s, slug, sources=None):
@@ -263,8 +302,8 @@ class Editor:
         if new_inner == old_inner:
             return {"ok": True, "unchanged": True}
         token = hashlib.sha1(("%s|%d|%s|%s" % (slug, n, bhash, after_html)).encode("utf-8")).hexdigest()[:16]
-        if kind == "generated":
-            return self._save_generated(slug, src, block, new_inner, confirm, token)
+        if kind == "generated" or block.region:
+            return self._save_mapped(slug, src, block, new_inner, confirm, token)
 
         cand = src[:block.node.se] + new_inner + src[block.node.ie:]
         cand, linked = link_jsonld(cand, H.norm(block_text(src, block)),
@@ -302,9 +341,12 @@ class Editor:
         return {"ok": True, "entry": entry["id"], "inner": ablock.inner(ann), "hash": target.hash(cand),
                 "page": B.page_hash(cand), "linked": linked, "pages": sorted(followers)}
 
-    def _save_generated(self, slug, src, block, new_inner, confirm, token):
-        pv = self.provenance(slug, src)
-        bp = pv.blocks.get(block.n)
+    def _save_mapped(self, slug, src, block, new_inner, confirm, token):
+        """Úprava bloku podle proveniance: změněné úseky do literálů skriptu nebo hodnot datových
+        souborů, zkušební build dotčených stránek (_part_plan: u literálů generované stránky, u dat
+        všechny), kontrola a jeden záznam journalu se zdroji i stránkami."""
+        pv = self.provenance(slug)
+        bp = pv.blocks.get(block.n) if pv is not None else None
         if bp is None or bp.unmapped:
             raise Fail(PV.LOCK_UNMAPPED, code="locked", status=403)
         if bp.injected():
@@ -329,18 +371,19 @@ class Editor:
         values = {}
         for seg, o, nw in sorted(edits, key=lambda x: -x[0].k):
             key = (seg.file, seg.li)
-            val = values.get(key, pv.lits[seg.file][seg.li].value)
+            lit = pv.lits[seg.file][seg.li]
+            val = values.get(key, lit.value)
             try:
-                values[key] = PV.splice(val, seg, o, nw, PV.needs_strip(pv, seg, o, bp))
+                values[key] = PV.splice(val, seg, o, nw, PV.needs_strip(pv, seg, o, bp), PV.is_text(seg.file, lit.value))
             except PV.SpliceError as e:
                 raise Fail(str(e), code="locked", status=422)
         changed = {}
-        for fk, text in pv.srcs.items():
-            s = text
+        for fk in sorted({f for f, _ in values}):
+            text = s = pv.srcs[fk]
             for (f2, li), val in sorted(values.items(), key=lambda x: -pv.lits[x[0][0]][x[0][1]].a):
                 if f2 == fk:
                     try:
-                        s = P.replace(s, pv.lits[fk][li], val)
+                        s = PV.write(fk, s, pv.lits[fk][li], val)
                     except ValueError as e:
                         raise Fail("Do zdroje se text nepodařilo zapsat (%s), nic jsem nezapsal." % e,
                                    code="verify", status=422)
@@ -348,23 +391,19 @@ class Editor:
                 changed[fk] = s
         if not changed:
             return {"ok": True, "unchanged": True}
+        if any(PV.read(self.root, fk) != pv.srcs[fk] for fk in changed):
+            raise Fail("Stránka nebo zdroj se mezitím změnily. Načti stránku znovu.", code="stale", status=409)
 
-        # 2. zkušební build dotčených skriptů, build v paměti a kontrola každé změněné stránky
-        ok, err, outputs = self.site.generate(changed, self.site.scripts_for(changed))
-        if not ok:
-            raise Fail("Build se změněným textem selhal, nic jsem nezapsal.", code="verify",
-                       details=[x for x in err.strip().splitlines() if x.strip()][-6:])
-        writes, fails, built = {}, [], {}
-        for page in sorted(outputs):
-            cand = self.inject(outputs[page], page)
-            if cand == self.read_page(page):
-                continue
-            fails += self.check(page, cand)
-            writes[self.page_rel(page)] = built[page] = cand
-        followers = self.faq_followers(built, fails)
-        writes.update({self.page_rel(p): c for p, (_, c) in followers.items()})
-        if fails:
-            raise Fail("Úprava by neprošla kontrolou buildu, nic jsem nezapsal.", code="verify", details=fails)
+        # 2. zkušební build dotčených stránek, build v paměti a kontrola každé změněné stránky
+        reg = self.registry()
+        if any(PV.is_data(fk) for fk in changed):
+            reach, scripts = set(reg), None
+        else:
+            reach = {p for p, v in reg.items() if v["kind"] == "generated"}
+            scripts = self.site.scripts_for(changed)
+        pkey = (str(self.root), "mapped|" + token)
+        plan = self._cached_plan(pkey, changed, reach=reach, scripts=scripts)
+        writes = plan["writes"]
         cand = writes.get(self.page_rel(slug))
         if cand is None:
             raise Fail("Úprava se po buildu na stránce neprojevila, nic jsem nezapsal.", code="verify", status=422)
@@ -384,7 +423,7 @@ class Editor:
             notes.append("Na téhle stránce se mění i další text (%d): „%s“" % (len(others), others[0][:120]))
         if src[:src.find("<body")] != cand[:cand.find("<body")]:
             notes.append("Mění se i hlavička stránky (title, meta nebo JSON-LD): text se tam ukládá prostý.")
-        pages = sorted(p for p in set(outputs) | set(followers) if self.page_rel(p) in writes and p != slug)
+        pages = [p for p in plan["pages"] if p != slug]
         if pages:
             notes.append("Text je sdílený: propíše se i na %s — %s"
                          % (_plural(len(pages), "další stránku", "další stránky", "dalších stránek"),
@@ -392,18 +431,19 @@ class Editor:
         if notes and confirm != token:
             return {"confirm": token, "message": "Úprava změní víc než tenhle blok.", "details": notes}
 
-        # 4. zápis: skript(y) i všechny změněné stránky v jednom záznamu journalu
+        # 4. zápis: zdroje i všechny změněné stránky v jednom záznamu journalu
         with write_lock(self.root):
-            if (self.read_page(slug) != src or self._stale_followers(followers)
-                    or PV.sources(self.site, slug) != pv.srcs):
-                raise Fail("Stránka nebo skript se mezitím změnily. Načti stránku znovu.", code="stale", status=409)
-            all_writes = {fk: text.encode("utf-8") for fk, text in changed.items()}
-            all_writes.update({rel: text.encode("utf-8") for rel, text in writes.items()})
+            if (self.read_page(slug) != src or not self._fresh(plan["state"])
+                    or any(PV.read(self.root, fk) != pv.srcs[fk] for fk in changed)):
+                _PART_PLANS.pop(pkey, None)
+                raise Fail("Stránka nebo zdroj se mezitím změnily. Načti stránku znovu.", code="stale", status=409)
             new_text = H.norm(block_text(src, block, got))
-            entry = self.journal.write(all_writes, slug=slug, pages=[slug] + pages, block=block.n,
+            entry = self.journal.write({rel: text.encode("utf-8") for rel, text in writes.items()},
+                                       slug=slug, pages=[slug] + pages, block=block.n,
                                        label="/%s · %s" % (slug, block.node.tag),
                                        before=H.norm(block_text(src, block))[:300], after=new_text[:300],
                                        snippet=_snippet(new_text))
+        _PART_PLANS.pop(pkey, None)
         ann = self._annotated(slug, cand)
         ablock = next(b for b in B.blocks(ann) if b.n == block.n)
         return {"ok": True, "entry": entry["id"], "inner": ablock.inner(ann), "hash": target.hash(cand),
@@ -475,11 +515,11 @@ class Editor:
     def _fresh(self, state):
         return all(_sha_file(self.root, p) == h for p, h in state.items())
 
-    def _cached_plan(self, key, texts, own=None, reach=None):
+    def _cached_plan(self, key, texts, own=None, reach=None, scripts=None):
         """Plán sdílené změny z cache (potvrzení a uložení bez druhého buildu), dokud sedí soubory."""
         plan = _PART_PLANS.get(key)
         if plan is None or not self._fresh(plan["state"]):
-            plan = self._part_plan(texts, own, reach)
+            plan = self._part_plan(texts, own, reach, scripts)
             _PART_PLANS[key] = plan
             while len(_PART_PLANS) > 4:
                 _PART_PLANS.popitem(last=False)
@@ -490,16 +530,17 @@ class Editor:
         pro editor, ať obrázek v bloku dál otevře popover)."""
         root = B.parse(s)
         part_lock = None if actor()["role"] == "admin" else LOCK_PART_ROLE
-        marks = C.attr_marks(C.attr_nodes(s, self.kind(slug), self.lock_reason(slug), part_lock, root))
+        marks = C.attr_marks(C.attr_nodes(s, self.kind(slug), self.lock_reason(slug, stale=True), part_lock, root))
         return B.annotate(s, B.blocks(s, root), None, marks)
 
-    def _part_plan(self, texts, own=None, reach=None):
+    def _part_plan(self, texts, own=None, reach=None, scripts=None):
         """Stránky sdílených souborů texts ({cesta v repu: nový obsah}) přestavěné s novým obsahem:
         ruční a owner buildem v paměti pod overlay, generované zkušebním buildem generátoru, k tomu
         stránky s převzatým FAQ. own = {slug: zdroj} stránek s vlastní změnou, která se sestaví
         s nimi (panel Další texty), reach = stránky, kterých se změna týká, místo stránek sdílených
-        souborů (údaje o vás, adapter.Site.entity_reach). Nic nezapisuje. Vrací {writes: {cesta v repu: text}, pages: [slug],
-        state: {cesta: sha souboru}}."""
+        souborů (údaje o vás, adapter.Site.entity_reach). Zdroje generátoru v texts dostane jen
+        zkušební build (scripts = skripty k puštění, None = všechny), ostatní soubory i overlay.
+        Nic nezapisuje. Vrací {writes: {cesta v repu: text}, pages: [slug], state: {cesta: sha souboru}}."""
         site = self.site
         reg = self.registry()
         own = own or {}
@@ -508,7 +549,8 @@ class Editor:
         reached = sorted(set(reach) | set(own))
         state = {rel: _sha_file(self.root, rel) for rel in texts}
         fails, built = [], {}
-        with site.overlay(texts):
+        gen = set(site.generator_files())
+        with site.overlay({rel: t for rel, t in texts.items() if rel not in gen}):
             for p in reached:
                 if reg[p]["kind"] == "generated":
                     continue
@@ -520,7 +562,7 @@ class Editor:
                     fails += self.check(p, cand)
                     built[p] = cand
             if any(reg[p]["kind"] == "generated" for p in reached):
-                ok, err, outputs = site.generate(texts, None)
+                ok, err, outputs = site.generate(texts, scripts)
                 if not ok:
                     raise Fail("Build se změněným textem selhal, nic jsem nezapsal.", code="verify",
                                details=[x for x in err.strip().splitlines() if x.strip()][-6:])

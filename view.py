@@ -61,7 +61,7 @@ def _details(m):
 def edit_view(src, slug, kind, page_lock=None, prov=None, source="", base="", nonce=None, metas=None, slugs=(),
               site_css=False, part_lock=None, sprite="", ui_css=False):
     """page_lock = důvod, proč je zamčená celá stránka (owner bez odemčení…).
-    prov = proveniance generované stránky: bloky bez zdroje se zamknou, sdílené
+    prov = proveniance stránky (generovaná, bloky odemčených oblastí z dat): bloky bez zdroje se zamknou, sdílené
     dostanou data-ke-shared/data-ke-pages/data-ke-file. source = soubor, kam se ukládá.
     base = cesta editoru (admin: /web), nonce = jediný povolený skript (editor.js), metas = další
     <meta name="ke-…"> pro klienta (role, odemčení), site_css = styly editačního pohledu pro prvky

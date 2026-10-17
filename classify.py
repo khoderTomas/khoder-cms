@@ -139,7 +139,7 @@ def page(editor, slug, unlock=False):
     src = editor.read_page(slug)
     lock = editor.lock_reason(slug)
     gen = kind == "generated"
-    prov = editor.provenance(slug, src) if gen and not lock else None
+    prov = editor.provenance(slug) if editor.mapped(slug, src) and not lock else None
     sp = editor.seo_prov(slug, src) if gen else None
     return Page(slug, kind, src, editor.root, lock, prov, sp, editor.seo_lock(slug, sp), editor.site.shared_files(),
                 editor.entity_panel(slug, src))
@@ -147,9 +147,11 @@ def page(editor, slug, unlock=False):
 
 # ── bloky (editační pohled) ──
 def blocks(src, lock=None, prov=None, root=None, part_lock=None):
-    """(bloky se zámkem, {n: atributy editovatelného bloku generované stránky}). Sdílený blok menu
+    """(bloky se zámkem, {n: atributy bloku, který se upravuje podle proveniance}). Sdílený blok menu
     a patičky (Block.part) zámek stránky ani proveniance nezamyká, mění se v souboru šablony;
-    part_lock = důvod, proč ho uživatel měnit nesmí (role)."""
+    part_lock = důvod, proč ho uživatel měnit nesmí (role). Proveniance zamyká bloky generované
+    stránky a bloky odemčených oblastí (Block.region), které ve zdroji nenašla; blok oblasti bez
+    proveniance je zamčený vždy (build by úpravu ve stránce přepsal)."""
     bl = B.blocks(src, root)
     extra = {}
     for b in bl:
@@ -158,9 +160,11 @@ def blocks(src, lock=None, prov=None, root=None, part_lock=None):
             continue
         if lock:
             b.lock = b.lock or lock
-        if b.lock or prov is None:
+        if b.lock:
             continue
-        bp = prov.blocks.get(b.n)
+        if not b.region and (prov is None or not prov.generated):
+            continue                                   # ruční blok: upravuje se ve stránce
+        bp = prov.blocks.get(b.n) if prov is not None else None
         if bp is None or bp.unmapped:
             b.lock = PV.LOCK_UNMAPPED
         elif bp.injected():

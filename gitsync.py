@@ -13,6 +13,7 @@ i sync ho najdou z repa samy, takže se nepotkají ani bez nastavení: kdo přij
 Stavební kameny publikace (postup skládá editor webu):
 - Git.clean: obsah souborů tak, jak by je uložil git add (konce řádků podle nastavení repa).
 - merge_file: třícestné sloučení přes git merge-file, vrací počet konfliktů.
+- merge: totéž, u .json při konfliktu ještě sloučení po cestách (jsonsource.merge3).
 - Worktree: dočasný worktree z commitu mimo checkout, po použití se smaže.
 - Git.push: "ok", nebo "behind", když větev na remote mezitím ujela.
 - advance: posun checkoutu na commit. Rozpracovaný soubor, který commit mění, posun zastaví,
@@ -255,6 +256,23 @@ def merge_file(ours, base, theirs):
     if p.returncode > 127:
         raise GitError("git merge-file selhal: %s" % _tail(p.stderr.decode("utf-8", "replace")))
     return p.stdout, p.returncode
+
+
+def merge(path, ours, base, theirs):
+    """merge_file; u datového souboru .json, kde git merge-file po řádcích hlásí konflikt (dvě
+    hodnoty na jednom řádku), ještě sloučení po cestách (jsonsource.merge3: změněné hodnoty ours
+    se zapíšou do theirs, když se cesty nepřekrývají)."""
+    data, n = merge_file(ours, base, theirs)
+    if n and base is not None and path.endswith(".json"):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import jsonsource
+        try:
+            text = jsonsource.merge3(ours.decode("utf-8"), base.decode("utf-8"), theirs.decode("utf-8"))
+        except UnicodeDecodeError:
+            text = None
+        if text is not None:
+            return text.encode("utf-8"), 0
+    return data, n
 
 
 class Worktree:

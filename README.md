@@ -33,17 +33,40 @@ skriptů generátoru, pole `source`). Ostatní dodá modul z `[editor] adapter` 
   generátorem, úseky stránky ze sdílené části (`partial_spans`), panel SEO: texty JSON-LD, které
   admin mění (`ld_allow`, `ld_label`), co plní build (`ld_fixed`), proč je robots jen ke čtení
   a sdílený objekt JSON-LD v datech webu, třeba autor webu (`entity`: soubor, typ, texty, kontakty,
-  témata). V procesu jsou jedny, `adapter.load()` je nainstaluje.
+  témata), texty z dat: značkovací vzory v prostém textu hodnot (`value_markup`: zástupný symbol
+  jako pevný prvek, párové značky kolem textu odkazu) a rodiny oblastí, jejichž bloky jdou upravit
+  v datech (`unlocked`, `region_family`). V procesu jsou jedny, `adapter.load()` je nainstaluje.
 - `Site`: manifest stránek, build stránky v paměti (`inject`) a kontrola (`check`), stránky, které
   přebírají obsah jiné stránky (`followers`), sdílené části stránek ve vlastních souborech, třeba
   hlavička a patička (`partial_files`, `partial_pages`, `overlay`: Najít a nahradit v nich hledá
   a přestaví jejich stránky), zkušební build generátoru do tempu (`generate`, `scripts`,
-  `shared_files`), data sdíleného objektu JSON-LD (`entity_data`, `entity_text`, `entity_block`)
-  a stránky, kterým jeho změna změní výstup (`entity_reach`), a úklid prostředí pro build při
-  publikaci.
+  `shared_files`), datové soubory s texty stránek (`data_files`), zkušební build celého webu
+  (`build_site`: generátor a všechny stránky pod overlay, výchozí implementace stačí), data
+  sdíleného objektu JSON-LD (`entity_data`, `entity_text`, `entity_block`) a stránky, kterým jeho
+  změna změní výstup (`entity_reach`), a úklid prostředí pro build při publikaci.
 
 Hodnotu v JSON (blok JSON-LD na stránce, data webu) mění `jsonsource.py` jen na cestě, zbytek textu
-zůstává v původním formátu.
+zůstává v původním formátu; řetězec z dat (`write_string`) i v původním escapování tokenu.
+
+## Proveniance
+
+Odkud je text bloku, který na stránce nestojí ve zdrojovém HTML, zjistí `provenance.py` jednou
+sondou celého webu (`probe_site`). Kandidáti: editovatelné bloky generovaných stránek (hledají se
+v literálech skriptu stránky a sdílených souborů generátoru) a bloky oblastí odemčené rodiny
+(`Block.region`, hledají se v řetězcích `data_files`). Na konec každého výskytu textu úseku se vloží
+značka jen ze znaků pro soukromé použití (U+E000, číslice z U+E040–U+E07F, U+E001), výskyt uprostřed
+slova se nepočítá. Zkušební build (`build_site`) ukáže, kam značky dopadly; výstup bez značek se musí
+rovnat stránce, jinak jde stránka do druhého kola jen se svými značkami a pak je neprověřená (bloky
+zamčené). Build webu musí značky z délek textů vynechat (zalamování titulků, šířka štítků).
+
+`apply.Editor` drží poslední sondu (`site_prov`) a výsledek stránky použije, dokud sedí ona a soubory,
+ze kterých má texty (`PageProv.key`); po zápisu sondu dohřeje na pozadí (`warm`, i při startu
+serveru). Uložení (`_save_mapped`) zapíše změněné úseky do literálů nebo hodnot, přestaví dotčené
+stránky (u dat všechny) a zapíše zdroje i stránky jedním záznamem journalu. Hodnota z dat bez tagů
+a entit je prostý text: vložený text se do ní dekóduje z HTML, nové formátování editor odmítne.
+
+Publikace slučuje soubory z journalu přes `git merge-file`; u `.json`, kde po řádcích vyjde konflikt
+(dvě hodnoty na jednom řádku), ještě po cestách (`gitsync.merge`, `jsonsource.merge3`).
 
 Bez adaptéru je web čisté ruční HTML bez buildu a generátoru.
 

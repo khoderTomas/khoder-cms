@@ -135,11 +135,13 @@ def inline_only(n):
 
 
 class Block:
-    """part = sdílený soubor (cesta v repu), ze kterého blok build vkládá (menu, patička), jinak None."""
-    __slots__ = ("n", "node", "lock", "elems", "part")
+    """part = sdílený soubor (cesta v repu), ze kterého blok build vkládá (menu, patička), jinak None.
+    region = důvod zámku oblasti, kterou build plní z dat a jejíž rodinu adaptér odemkl
+    (adapter.Rules.unlocked): blok není zamčený, upravuje se v datech podle proveniance (B8)."""
+    __slots__ = ("n", "node", "lock", "elems", "part", "region")
 
-    def __init__(self, n, node, lock, part=None):
-        self.n, self.node, self.lock, self.part = n, node, lock, part
+    def __init__(self, n, node, lock, part=None, region=None):
+        self.n, self.node, self.lock, self.part, self.region = n, node, lock, part, region
         self.elems = []                            # [(k, Node, atom)] v pořadí dokumentu
 
     def inner(self, src):
@@ -166,6 +168,12 @@ def short_hash(s):
 def managed_ranges(src):
     """[(začátek, konec, důvod)] oblastí, které plní build (adaptér webu), v pořadí přednosti."""
     return AD.RULES.regions(src)
+
+
+def unlocked(why):
+    """Je oblast s tímhle důvodem zámku v rodině, kterou adaptér odemkl pro úpravy přes data?"""
+    R = AD.RULES
+    return bool(R.unlocked) and R.region_family(why) in R.unlocked
 
 
 def node_lock(n):
@@ -205,8 +213,12 @@ def blocks(src, root=None, part=None):
             return why
         for a, b, why in managed:
             if a <= n.s < b:
-                return why
+                return None if unlocked(why) else why
         return None
+
+    def region_of(p):
+        why = next((why for a, b, why in managed if a <= p < b), None)
+        return why if why is not None and unlocked(why) else None
 
     def walk(n, lock):
         for c in n.children:
@@ -215,7 +227,7 @@ def blocks(src, root=None, part=None):
             lk = lock_of(c, lock)
             if c.closed and c.tag not in VOID and inline_only(c) and has_text(c):
                 if c.text:
-                    b = Block(len(out), c, lk, part_of(c.s))
+                    b = Block(len(out), c, lk, part_of(c.s), None if lk else region_of(c.s))
                     _elems(c, b.elems)
                     out.append(b)
                     continue

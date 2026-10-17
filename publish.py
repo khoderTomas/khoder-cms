@@ -313,7 +313,7 @@ class Publisher:
             if t is None:
                 conflicts.append(self._conflict(p, entries, base, target, "v main soubor zmizel"))
                 continue
-            data, n = G.merge_file(ours[p], b, t)
+            data, n = G.merge(p, ours[p], b, t)
             if n:
                 conflicts.append(self._conflict(p, entries, base, target, None, b, t))
             else:
@@ -345,8 +345,8 @@ class Publisher:
         if before is None or after is None or b is None:
             return True
         before, after = self.repo.clean_bytes(path, before), self.repo.clean_bytes(path, after)
-        alone, n = G.merge_file(after, before, b)
-        return bool(n) or bool(G.merge_file(alone, b, t)[1])
+        alone, n = G.merge(path, after, before, b)
+        return bool(n) or bool(G.merge(path, alone, b, t)[1])
 
     # ── publikace ──
     def start(self, message, author=None):

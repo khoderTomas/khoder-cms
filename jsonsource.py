@@ -9,9 +9,16 @@ na řádek se stejným odsazením), jiná hodnota jako json.dumps s odsazením 2
 stojí. Zpětné parsování musí dát strom, kde se liší jen ta cesta, jinak JsonSourceError.
 
 Cesta je n-tice klíčů objektů a indexů seznamů, () je celý dokument.
+
+Datové soubory webu (texty v JSON, B8): strings dá řetězcové hodnoty s polohou, write_string zapíše
+jednu hodnotu v původním escapování tokenu (nezměněné znaky zůstanou původními bajty, nové neviditelné
+znaky jako \\uXXXX, P31) a merge3 sloučí tři verze souboru po cestách, když git merge-file po řádcích
+hlásí konflikt (dvě hodnoty na jednom řádku).
 """
 import json
 import re
+import unicodedata
+from difflib import SequenceMatcher
 
 _WS = re.compile(r"[ \t\r\n]*")
 _STR = re.compile(r'"(?:[^"\\]|\\.)*"', re.S)
@@ -143,6 +150,135 @@ def replace(raw, path, new):
         want = new
     if json.loads(out) != want:
         raise JsonSourceError("Zápis na cestu %s změnil i jiné hodnoty." % "/".join(map(str, path)))
+    return out
+
+
+# ── řetězce datových souborů: poloha, zápis v původním escapování, sloučení po cestách ──
+_ESC = {'"': '"', "\\": "\\", "/": "/", "b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t"}
+_ENC = {'"': '\\"', "\\": "\\\\", "\b": "\\b", "\f": "\\f", "\n": "\\n", "\r": "\\r", "\t": "\\t"}
+
+
+def strings(raw):
+    """[(cesta, začátek, konec, hodnota)] řetězcových hodnot (klíče ne) v pořadí textu; rozsah je
+    token i s uvozovkami."""
+    out = [(p, a, z) for p, (a, z) in spans(raw).items() if raw[a:a + 1] == '"']
+    out.sort(key=lambda x: x[1])
+    return [(p, a, z, json.loads(raw[a:z])) for p, a, z in out]
+
+
+def _pieces(tok):
+    """[(znak, bajty v tokenu)] obsahu tokenu "…" (dvojice náhradních znaků \\uD83D\\uDE00 jako jeden znak)."""
+    out, i, end = [], 1, len(tok) - 1
+    while i < end:
+        c = tok[i]
+        if c != "\\":
+            out.append((c, c))
+            i += 1
+            continue
+        e = tok[i + 1]
+        if e != "u":
+            out.append((_ESC[e], tok[i:i + 2]))
+            i += 2
+            continue
+        cp = int(tok[i + 2:i + 6], 16)
+        j = i + 6
+        if 0xD800 <= cp < 0xDC00 and tok[j:j + 2] == "\\u" and 0xDC00 <= int(tok[j + 2:j + 6], 16) < 0xE000:
+            cp = 0x10000 + ((cp - 0xD800) << 10) + (int(tok[j + 2:j + 6], 16) - 0xDC00)
+            j += 6
+        out.append((chr(cp), tok[i:j]))
+        i = j
+    return out
+
+
+def _invisible(c):
+    return c != " " and unicodedata.category(c) in ("Zs", "Zl", "Zp", "Cf", "Cc", "Co")
+
+
+def _enc_char(c, esc, upper):
+    if c in _ENC:
+        return _ENC[c]
+    if c in esc or _invisible(c):
+        if ord(c) > 0xFFFF:
+            v = ord(c) - 0x10000
+            return _enc_char(chr(0xD800 + (v >> 10)), (), upper) + _enc_char(chr(0xDC00 + (v & 0x3FF)), (), upper)
+        h = "%04x" % ord(c)
+        return "\\u" + (h.upper() if upper else h)
+    return c
+
+
+def write_string(raw, path, new):
+    """raw s řetězcem new na cestě path: zapíše se jen změna proti původní hodnotě, nezměněné znaky
+    původními bajty tokenu, nové znaky ve stylu tokenu (znak, který token escapoval, a neviditelné
+    znaky jako \\uXXXX, jinak doslova). Zpětné parsování musí změnit jen tu cestu."""
+    sp = spans(raw)
+    if path not in sp:
+        raise JsonSourceError("V JSON chybí cesta %s." % "/".join(map(str, path)))
+    a, z = sp[path]
+    tok = raw[a:z]
+    if not tok.startswith('"'):
+        raise JsonSourceError("Na cestě %s není text." % "/".join(map(str, path)))
+    pieces = _pieces(tok)
+    old = "".join(c for c, _ in pieces)
+    esc = {c for c, r in pieces if r.startswith("\\u")}
+    upper = any(r.startswith("\\u") and r[2:6] != r[2:6].lower() for _, r in pieces)
+    out = []
+    for op, i1, i2, j1, j2 in SequenceMatcher(None, old, new, autojunk=False).get_opcodes():
+        if op == "equal":
+            out += [r for _, r in pieces[i1:i2]]
+        elif op in ("replace", "insert"):
+            out += [_enc_char(c, esc, upper) for c in new[j1:j2]]
+    res = raw[:a] + '"' + "".join(out) + '"' + raw[z:]
+    want = json.loads(raw)
+    if path:
+        get(want, path[:-1])[path[-1]] = new
+    else:
+        want = new
+    if json.loads(res) != want:
+        raise JsonSourceError("Zápis na cestu %s změnil i jiné hodnoty." % "/".join(map(str, path)))
+    return res
+
+
+def _changes(a, b, path=()):
+    """Cesty, na kterých se strom b liší od a (objekt se stejnými klíči a seznam se stejnou délkou
+    po položkách, jinak celá hodnota)."""
+    if isinstance(a, dict) and isinstance(b, dict) and set(a) == set(b):
+        return [p for k in a for p in _changes(a[k], b[k], path + (k,))]
+    if isinstance(a, list) and isinstance(b, list) and len(a) == len(b):
+        return [p for i, (x, y) in enumerate(zip(a, b)) for p in _changes(x, y, path + (i,))]
+    return [] if a == b and type(a) is type(b) else [path]
+
+
+def merge3(ours, base, theirs):
+    """Třícestné sloučení textů JSON po cestách: změny ours proti base se zapíšou do theirs jako
+    původní text hodnot z ours (formát theirs zůstane). None, když se změněné cesty ours a theirs
+    překrývají s jinou hodnotou, nebo když některá verze není platný JSON."""
+    try:
+        o, b, t = json.loads(ours), json.loads(base), json.loads(theirs)
+    except ValueError:
+        return None
+    co, ct = _changes(b, o), _changes(b, t)
+    for p in co:
+        for q in ct:
+            if p[:len(q)] == q or q[:len(p)] == p:
+                if p != q or get(o, p) != get(t, q):
+                    return None
+    todo = [p for p in co if p not in ct]
+    if not todo:
+        return theirs
+    so, st = spans(ours), spans(theirs)
+    if any(p not in st for p in todo):
+        return None
+    out, want = theirs, t
+    for p in sorted(todo, key=lambda p: -st[p][0]):
+        a, z = st[p]
+        oa, oz = so[p]
+        out = out[:a] + ours[oa:oz] + out[z:]
+        if p:
+            get(want, p[:-1])[p[-1]] = get(o, p)
+        else:
+            want = get(o, p)
+    if json.loads(out) != want:
+        return None
     return out
 
 

@@ -246,7 +246,7 @@ class Web:
         src = ed.read_page(slug)
         if "e" in q:
             kind, lock = ed.kind(slug), ed.lock_reason(slug)
-            prov = ed.provenance(slug, src) if kind == "generated" and not lock else None
+            prov = ed.provenance(slug) if ed.mapped(slug, src) and not lock else None
             nonce = secrets.token_urlsafe(16)
             until = ed.unlocked_until(slug) if kind == "owner" else None
             role = A.actor()["role"]
@@ -366,6 +366,8 @@ class Web:
             r = {"ok": True}
         else:
             return self._error("Neznámé API.", 404)
+        if name in WRITES:
+            ed.warm()                            # sonda proveniance pro další stránku na pozadí
         r["count"] = len(ed.journal.unpublished())
         return self._json(r)
 

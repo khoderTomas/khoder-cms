@@ -70,5 +70,62 @@ class JsonSourceTest(unittest.TestCase):
             J.replace(RAW, ("nic",), "x")
 
 
+def bs(s):
+    """Zpětné lomítko jako ~ (escapy v textu JSON, které nástroje při zápisu souboru nerozbijí)."""
+    return s.replace("~", chr(92))
+
+
+NBSP, WJ = chr(0xA0), chr(0x2060)
+DATA = bs('{\n  "a": [{"t": "Z~u00a0reportu do aplikace", "u": "/cesta"}, {"t": "Řekl ~"ano~""}],\n'
+          '  "b": {"x": "Emoji ~ud83d~ude00 a tab~t", "n": 3}, "c": "Velké ~u00A0písmeno"\n}\n')
+
+
+class StringsTest(unittest.TestCase):
+    def test_strings_are_values_in_text_order(self):
+        got = J.strings(DATA)
+        self.assertEqual([p for p, _, _, _ in got], [("a", 0, "t"), ("a", 0, "u"), ("a", 1, "t"), ("b", "x"), ("c",)])
+        p, a, z, v = got[0]
+        self.assertEqual(v, "Z" + NBSP + "reportu do aplikace")
+        self.assertEqual(DATA[a:z], bs('"Z~u00a0reportu do aplikace"'))
+        self.assertEqual(got[3][3], "Emoji " + chr(0x1F600) + " a tab\t")
+
+    def test_write_keeps_original_escapes_and_line(self):
+        new = "Z" + NBSP + "reportu do finanční aplikace"
+        out = J.write_string(DATA, ("a", 0, "t"), new)
+        self.assertEqual(out, DATA.replace(bs("Z~u00a0reportu do aplikace"), bs("Z~u00a0reportu do finanční aplikace")))
+
+    def test_new_invisible_chars_are_escaped_and_letters_literal(self):
+        out = J.write_string(DATA, ("a", 1, "t"), 'Řekl "ne" v' + NBSP + "pátek" + WJ)
+        self.assertIn(bs('"Řekl ~"ne~" v~u00a0pátek~u2060"'), out)
+        out = J.write_string(DATA, ("b", "x"), "Emoji " + chr(0x1F600) + " a tab\t!")
+        self.assertIn(bs('"Emoji ~ud83d~ude00 a tab~t!"'), out)
+        out = J.write_string(DATA, ("c",), "Velké" + NBSP + "písmeno" + NBSP + "znovu")
+        self.assertIn(bs('"Velké~u00A0písmeno~u00A0znovu"'), out)
+
+    def test_write_refuses_non_string_and_missing_path(self):
+        with self.assertRaises(J.JsonSourceError):
+            J.write_string(DATA, ("b", "n"), "3")
+        with self.assertRaises(J.JsonSourceError):
+            J.write_string(DATA, ("b", "y"), "x")
+
+
+class Merge3Test(unittest.TestCase):
+    BASE = '{"a": {"t": "jedna", "u": "dva"}, "b": ["x", "y"]}\n'
+
+    def test_values_on_one_line_merge_by_path_in_theirs_format(self):
+        ours = self.BASE.replace('"jedna"', '"JEDNA"')
+        theirs = self.BASE.replace('"dva"', '"DVA"').replace('["x", "y"]', '[\n  "x",\n  "y"\n]')
+        out = J.merge3(ours, self.BASE, theirs)
+        self.assertEqual(out, theirs.replace('"jedna"', '"JEDNA"'))
+        self.assertEqual(json.loads(out), {"a": {"t": "JEDNA", "u": "DVA"}, "b": ["x", "y"]})
+
+    def test_same_path_is_a_conflict_unless_equal(self):
+        ours = self.BASE.replace('"jedna"', '"A"')
+        self.assertIsNone(J.merge3(ours, self.BASE, self.BASE.replace('"jedna"', '"B"')))
+        self.assertEqual(J.merge3(ours, self.BASE, ours), ours)
+        self.assertIsNone(J.merge3(ours, self.BASE, self.BASE.replace('{"t": "jedna", "u": "dva"}', '{"t": "jedna"}')))
+        self.assertIsNone(J.merge3(ours, self.BASE, "{"))
+
+
 if __name__ == "__main__":
     unittest.main()

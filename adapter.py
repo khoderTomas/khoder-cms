@@ -68,6 +68,11 @@ class Rules:
     ld_allow = {}
     ld_types = {}
     entity = None
+    # Texty z dat (B8): značkovací vzory v prostém textu hodnot datových souborů [(regulární výraz, druh)],
+    # druh "atom" = pevný prvek (zástupný symbol, který build nahradí hodnotou), "wrap" = párové značky
+    # kolem textu skupiny 1 (odkaz). Rodiny oblastí (region_family), jejichž bloky jdou upravit v datech.
+    value_markup = ()
+    unlocked = frozenset()
 
     def ld_label(self, ty, key, ctx):
         """Popisek textu JSON-LD v panelu SEO (ctx = klíče předků), None = panel ho nenabízí."""
@@ -108,6 +113,11 @@ class Rules:
     def region_source(self, why):
         """(podkategorie, [soubory šablon v repu]) oblasti podle důvodu zámku, nebo None."""
         return None
+
+    def region_family(self, why):
+        """Rodina oblasti podle důvodu zámku (pro unlocked), výchozí podkategorie z region_source."""
+        src = self.region_source(why)
+        return src[0] if src else None
 
     def keep_closed(self, attrs):
         """Má <details> s těmito atributy zůstat v editačním pohledu zavřené?"""
@@ -242,6 +252,48 @@ class Site:
     def entity_reach(self, old, new):
         """Stránky, kterým se se změnou dat entity old → new změní výstup buildu."""
         return []
+
+    # ── datové soubory s texty stránek (B8) ──
+    def data_files(self):
+        """Datové soubory (JSON, cesty v repu), z jejichž řetězců build skládá texty stránek. Bloky
+        oblastí odemčených rodin (Rules.unlocked) editor upravuje v nich (provenance.probe_site)."""
+        return []
+
+    def build_site(self, overrides=None, pages=None):
+        """Zkušební build celého webu se zdroji overrides {cesta v repu: text}: generátor do tempu
+        (generate, všechny skripty) a stránky manifestu (pages = jen tyhle, None = všechny) buildem
+        v paměti (inject) pod overlay ostatních souborů. Stránka, která přebírá obsah jiné
+        (Rules.faq_from), se sestaví až po ní. Repo se nemění. Vrací (ok, chyba, {slug: html})."""
+        overrides = overrides or {}
+        gen = set(self.generator_files())
+        reg = self.registry() if pages is None else {s: None for s in pages}
+        outputs = {}
+        if self.scripts():
+            ok, err, outputs = self.generate(overrides, None)
+            if not ok:
+                return False, err, {}
+        texts = {}
+        for slug in reg:
+            if slug in outputs:
+                texts[slug] = outputs[slug]
+            else:
+                with open(self.root / self.page_rel(slug), encoding="utf-8", newline="") as f:
+                    texts[slug] = f.read()
+        pages = {}
+        try:
+            with self.overlay({k: v for k, v in overrides.items() if k not in gen}):
+                todo = sorted(texts)
+                while todo:
+                    left = set(todo)
+                    ready = [s for s in todo if not {x for _, _, x in self.rules.faq_from(texts[s])} & (left - {s})]
+                    if not ready:
+                        return False, "Stránky si obsah předávají v kruhu: %s" % ", ".join(todo), {}
+                    for s in ready:
+                        pages[s] = self.inject(texts[s], s, pages)
+                    todo = [s for s in todo if s not in pages]
+        except SiteError as e:
+            return False, str(e), {}
+        return True, "", pages
 
     # ── generátor ──
     def shared_files(self):

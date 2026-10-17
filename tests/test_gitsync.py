@@ -44,6 +44,16 @@ class MergeFileTest(unittest.TestCase):
         self.assertEqual(G.merge_file(same, self.BASE, self.BASE), (same, 0))
 
 
+    def test_json_values_on_one_line_merge_by_path(self):
+        base = b'{"a": {"t": "jedna", "u": "dva"}}\n'
+        ours, theirs = base.replace(b'"jedna"', b'"JEDNA"'), base.replace(b'"dva"', b'"DVA"')
+        self.assertEqual(G.merge_file(ours, base, theirs)[1], 1)
+        self.assertEqual(G.merge("content/x.json", ours, base, theirs), (b'{"a": {"t": "JEDNA", "u": "DVA"}}\n', 0))
+        self.assertEqual(G.merge("dist/x.html", ours, base, theirs)[1], 1)
+        clash = base.replace(b'"jedna"', b'"JINAK"')
+        self.assertEqual(G.merge("content/x.json", ours, base, clash)[1], 1)
+
+
 class RepoBase(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="cms-gitsync-"))

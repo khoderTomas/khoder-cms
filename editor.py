@@ -199,6 +199,7 @@ class App:
         self.title = urllib.parse.urlsplit(self.web.site).netloc or "Editor webu"
         if check_drift:
             threading.Thread(target=self.web.check_drift, daemon=True).start()
+            editor.warm()                        # sonda proveniance celého webu, první stránka bez čekání
         self.code_rev = self._head()
 
     # ── šasi ──

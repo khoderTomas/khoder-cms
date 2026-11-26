@@ -126,13 +126,18 @@ def load_config(text, origin="cms.toml"):
 
 
 # ── git ──
+# Auto gc po fetch v popředí: na pozadí by zamykal refy souběžnému sync checkoutu (gitsync.py).
+FOREGROUND = ("-c", "gc.autoDetach=false", "-c", "maintenance.autoDetach=false")
+
+
 class Repo:
     def __init__(self, path):
         self.path = str(path)
 
     def run(self, *args, input=None, check=True):
         try:
-            p = subprocess.run(["git", "-C", self.path, *args], input=input, capture_output=True, timeout=300)
+            p = subprocess.run(["git", "-C", self.path, *FOREGROUND, *args], input=input, capture_output=True,
+                               timeout=300)
         except (OSError, subprocess.TimeoutExpired) as e:
             raise DeployError("git %s selhal: %s" % (args[0], e))
         if check and p.returncode:

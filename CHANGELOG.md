@@ -4,6 +4,16 @@ Verze se řídí [sémantickým verzováním](https://semver.org/lang/cs/). Do v
 verze (0.x.0) změnit rozhraní adaptéru nebo `cms.toml`. Co pak v adaptéru upravit, píše `UPGRADING.md`.
 Opravná verze (0.x.y) rozhraní nemění.
 
+## 0.1.1 (2026-11-26)
+
+Opravná verze, rozhraní adaptéru 1 beze změny.
+
+- Sladění checkoutu (`gitsync.py`) po merge, který zapsal strom i index na cíl, ale nepřesunul HEAD:
+  nové soubory z cíle zůstaly jen v indexu a na disku chyběly. Překryté cesty se teď před posunem vrací
+  na HEAD i v indexu.
+- Automatická údržba gitu (`gc.autoDetach`, `maintenance.autoDetach`) běží v `gitsync.py`
+  i `deploy.py` v popředí. Na pozadí zamykala refy souběžnému merge.
+
 ## 0.1.0 (2026-10-17)
 
 První verze, rozhraní adaptéru 1.

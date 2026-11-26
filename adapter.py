@@ -37,7 +37,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-VERSION = "0.1.0"     # verze balíčku: tag v0.1.0, CHANGELOG.md
+VERSION = "0.1.1"     # verze balíčku: tag v0.1.1, CHANGELOG.md
 CONTRACT = 1          # verze rozhraní adaptéru (Rules, Site, cms.toml), Site.contract adaptéru webu
 CONFIG = "cms.toml"
 # Buildy editoru s nižší prioritou: na serveru sdílí procesor s ostatními službami hostitele.

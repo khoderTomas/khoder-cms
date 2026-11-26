@@ -24,7 +24,7 @@ Postup od ukázky k vlastnímu webu. Po každém kroku musí `python build/build
    proto po prvním commitu `git branch -M main` a `git push -u origin main`.
 2. Motor převezměte do složky `cms/` z vydané verze (`git subtree add` chce aspoň jeden commit):
    ```
-   git subtree add --prefix=cms https://github.com/khoderTomas/khoder-cms.git v0.1.0 --squash
+   git subtree add --prefix=cms https://github.com/khoderTomas/khoder-cms.git v0.1.1 --squash
    ```
    Ve webu se `cms/` neupravuje. Novou verzi stáhne `git subtree pull` podle `cms/UPGRADING.md`.
 3. `python build/build.py` a `python cms/coverage.py` musí projít ještě před první změnou. Od teď

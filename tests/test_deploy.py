@@ -136,6 +136,11 @@ class DeployBase(unittest.TestCase):
 
 
 class DeployTest(DeployBase):
+    def test_git_runs_auto_maintenance_in_foreground(self):
+        repo = D.Repo(self.work)
+        self.assertEqual(repo.out("config", "--get", "gc.autoDetach"), "false")
+        self.assertEqual(repo.out("config", "--get", "maintenance.autoDetach"), "false")
+
     def test_first_deploy_stamps_and_keeps_files_outside_git(self):
         r = self.deploy()
         self.assertIn("OK: Deployed version %s to https://example.test" % r["sha"][:12], self.out)

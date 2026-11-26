@@ -125,6 +125,33 @@ class AdvanceTest(RepoBase):
         self.assertEqual(self.read("dist/a.html"), "<p>a1 published</p>\n<p>a2</p>\n<p>a3</p>\n")
         self.assertEqual(git(self.work, "status", "--porcelain"), "")
 
+    def test_sync_after_merge_that_died_before_head_moved(self):
+        """Merge zapsal strom i index na cíl, HEAD nepřesunul (umřel na zámku ref při auto gc).
+        Další sync musí skončit s čistým stromem: nový soubor z cíle na disku, ne „ D“ jen v indexu."""
+        target = self.main_commit({"dist/a.html": "<p>a1 main</p>\n<p>a2</p>\n<p>a3</p>\n",
+                                   "build/novy.py": "N = 1\n"})
+        git(self.work, "fetch", "-q", "origin")
+        git(self.work, "read-tree", "-m", "-u", "HEAD", "origin/main")
+        r = G.sync(self.g, wait=5)
+        self.assertTrue(r["moved"], r)
+        self.assertEqual(git(self.work, "rev-parse", "HEAD"), target)
+        self.assertEqual(git(self.work, "status", "--porcelain"), "")
+        self.assertEqual(self.read("build/novy.py"), "N = 1\n")
+        self.assertEqual(self.read("dist/a.html"), "<p>a1 main</p>\n<p>a2</p>\n<p>a3</p>\n")
+
+    def test_untracked_file_equal_to_new_file_in_target_moves(self):
+        target = self.main_commit({"build/novy.py": "N = 1\n"})
+        self.write("build/novy.py", "N = 1\n")
+        r = G.advance(self.g, self.g.fetch("origin", "main"))
+        self.assertTrue(r["moved"], r)
+        self.assertEqual(git(self.work, "rev-parse", "HEAD"), target)
+        self.assertEqual(git(self.work, "status", "--porcelain"), "")
+
+    def test_git_runs_auto_maintenance_in_foreground(self):
+        """Auto gc po fetch nesmí běžet na pozadí a zamykat refy souběžnému merge."""
+        self.assertEqual(self.g.out("config", "--get", "gc.autoDetach"), "false")
+        self.assertEqual(self.g.out("config", "--get", "maintenance.autoDetach"), "false")
+
     def test_clean_follows_autocrlf(self):
         git(self.work, "config", "core.autocrlf", "true")
         (self.work / "dist" / "b.html").write_bytes(b"<p>b</p>\r\n<p>nov\xc3\xbd</p>\r\n")

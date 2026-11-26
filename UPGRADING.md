@@ -9,7 +9,7 @@ Příkazy se pouštějí z kořene repa webu s čistým pracovním stromem. Tag 
 ## První převzetí
 
 ```
-git subtree add --prefix=cms https://github.com/khoderTomas/khoder-cms.git v0.1.0 --squash
+git subtree add --prefix=cms https://github.com/khoderTomas/khoder-cms.git v0.1.1 --squash
 ```
 
 Web podle ukázky pak nastaví skill `nastaveni-webu` (`example/.claude/skills/`).
@@ -41,6 +41,10 @@ Editor a `coverage.py` ho při startu porovnají s číslem motoru (`CONTRACT` v
 Když nesedí, skončí chybou „Adaptér … je napsaný pro rozhraní …“. Upravte adaptér podle oddílů
 verzí níž a teprve potom číslo zvyšte. Číslo bez úpravy adaptéru nepřepisujte, kontrola by pak nic
 nechránila.
+
+## 0.1.1
+
+Oprava, rozhraní 1 beze změny. Adaptér se neupravuje.
 
 ## 0.1.0
 

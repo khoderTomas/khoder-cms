@@ -8,11 +8,11 @@ navzájem, kód nemá cesty webu a v balíčku není jméno konkrétního webu.
 
 ## Stav
 
-Verze 0.1.0 (`CHANGELOG.md`), rozhraní adaptéru 1. Do repa webu se motor převezme a aktualizuje jako
+Verze 0.1.1 (`CHANGELOG.md`), rozhraní adaptéru 1. Do repa webu se motor převezme a aktualizuje jako
 `git subtree` z tagu, postup a co při nové verzi upravit v adaptéru je v `UPGRADING.md`:
 
 ```
-git subtree add --prefix=cms https://github.com/khoderTomas/khoder-cms.git v0.1.0 --squash
+git subtree add --prefix=cms https://github.com/khoderTomas/khoder-cms.git v0.1.1 --squash
 ```
 
 Ukázkový web je v `example/`: šablona

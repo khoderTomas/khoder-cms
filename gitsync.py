@@ -104,13 +104,21 @@ class Lock:
 
 
 # ── git ──
+# Automatická údržba (gc, maintenance) po fetch nebo commitu běží v popředí, uvnitř zámku syncu.
+# Na pozadí zamykala refy souběžnému merge --ff-only: ten zapsal strom i index na cíl, ale HEAD
+# nepřesunul a další sync pak nové soubory z cíle na disk nedal. maintenance.autoDetach čte git od 2.47,
+# starší ho ignoruje a stačí mu gc.autoDetach.
+FOREGROUND = ("-c", "gc.autoDetach=false", "-c", "maintenance.autoDetach=false")
+
+
 class Git:
     def __init__(self, path):
         self.path = Path(path)
 
     def run(self, *args, input=None, check=True, timeout=300):
         try:
-            p = subprocess.run(["git", "-C", str(self.path), *args], input=input, capture_output=True, timeout=timeout)
+            p = subprocess.run(["git", "-C", str(self.path), *FOREGROUND, *args], input=input, capture_output=True,
+                               timeout=timeout)
         except (OSError, subprocess.TimeoutExpired) as e:
             raise GitError("git %s selhal: %s" % (args[0], e))
         if check and p.returncode:
@@ -326,7 +334,10 @@ def advance(git, target, owned=()):
         if res["blocked"]:
             return res
     if over:
-        inhead = git.blobs(["%s:%s" % (head, p) for p in over])
+        # Na HEAD vrátit index i strom. Nový soubor, který zůstal v indexu (merge, který umřel
+        # před posunem HEAD), by merge --ff-only bral za zapsaný a na disk ho už nedal.
+        git.run("reset", "-q", head, "--", *over)
+        inhead =git.blobs(["%s:%s" % (head, p) for p in over])
         tracked = [p for p in over if inhead["%s:%s" % (head, p)] is not None]
         if tracked:
             git.run("checkout", head, "--", *tracked)
